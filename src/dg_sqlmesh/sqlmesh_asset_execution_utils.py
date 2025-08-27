@@ -80,7 +80,7 @@ def _init_execution_event_buffers(
     return _init_execution_event_buffers_ext()
 
 
-def _get_notifier_failures(_: SQLMeshResource | None = None) -> List[Dict]:
+def _get_notifier_failures(_: SQLMeshResource | None = None) -> List[Dict]: #TODO check if still in use and find if another method replace it somewhere
     """Compatibility shim delegating to the no-arg notifier helper.
 
     Tests may call this with an argument; ignore it.
@@ -252,10 +252,6 @@ def execute_sqlmesh_materialization(
         sqlmesh_skipped_models = list(set(requested_models) - set(normalized_executed_models))
         
         context.log.info(f"Execution deduction: {len(requested_models)} requested, {len(sqlmesh_executed_models)} executed, {len(sqlmesh_skipped_models)} deduced as skipped")
-        context.log.info(f"🔍 DEBUG: requested_models={requested_models}")
-        context.log.info(f"🔍 DEBUG: sqlmesh_executed_models={sqlmesh_executed_models}")
-        context.log.info(f"🔍 DEBUG: normalized_executed_models={normalized_executed_models}")
-        context.log.info(f"🔍 DEBUG: sqlmesh_skipped_models={sqlmesh_skipped_models}")
 
     # Capture all results
     # Console removed → no legacy failed models events
@@ -303,7 +299,7 @@ def execute_sqlmesh_materialization(
         f"Blocking failed assets: {blocking_failed_asset_keys} | Downstream affected: {list(affected_downstream_asset_keys)}"
     )
 
-    # Build shared result payload
+        # Build shared result payload
     results: Dict[str, Any] = {
         "failed_check_results": failed_check_results,
         "skipped_models_events": skipped_models_events,
@@ -311,7 +307,7 @@ def execute_sqlmesh_materialization(
         "non_blocking_audit_warnings": non_blocking_audit_warnings,
         "notifier_audit_failures": notifier_audit_failures,
         "affected_downstream_asset_keys": list(affected_downstream_asset_keys),
-        "sqlmesh_executed_models": sqlmesh_executed_models,  # Models actually executed by SQLMesh
+        "sqlmesh_executed_models": normalized_executed_models,  # Store NORMALIZED executed models
         "sqlmesh_skipped_models": sqlmesh_skipped_models,  # Models actually skipped by SQLMesh
         "plan": plan,
     }
@@ -584,7 +580,7 @@ def handle_successful_execution(
                             "sqlmesh_model": current_model_name,
                             "check_type": "execution_status",
                             "status": "skipped",
-                            "message": f"Model {current_model_name} was skipped by SQLMesh (no changes detected)",
+                            "message": f"Model {current_model_name} was skipped by SQLMesh (no new data to compute)",
                         },
                     )
                 )

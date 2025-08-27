@@ -48,7 +48,7 @@ class SimpleRunTracker(Console):
     def update_snapshot_evaluation_progress(
         self,
         snapshot: Snapshot,
-        interval: t.Any,  # On s'en fiche du type exact
+        interval: t.Any,
         _batch_idx: int,
         _duration_ms: t.Optional[int],
         _num_audits_passed: int,
@@ -59,78 +59,79 @@ class SimpleRunTracker(Console):
         """MODÈLE EXÉCUTÉ - juste ajouter le nom."""
         self.run_models.add(snapshot.name)
     
-    def log_skipped_models(_self, _snapshot_names: t.Set[str]) -> None: pass
-    def start_plan_evaluation(_self, _plan: EvaluatablePlan) -> None: pass
-    def stop_plan_evaluation(_self) -> None: pass
-    def start_evaluation_progress(_self, _batched_intervals: t.Dict[Snapshot, t.Any], _environment_naming_info: EnvironmentNamingInfo, _default_catalog: t.Optional[str], _audit_only: bool = False) -> None: pass
-    def start_snapshot_evaluation_progress(_self, _snapshot: Snapshot, _audit_only: bool = False) -> None: pass
-    def stop_evaluation_progress(_self, _success: bool = True) -> None: pass
-    def start_signal_progress(_self, _snapshot: Snapshot, _default_catalog: t.Optional[str], _environment_naming_info: EnvironmentNamingInfo) -> None: pass
-    def update_signal_progress(_self, _snapshot: Snapshot, _signal_name: str, _signal_idx: int, _total_signals: int, _ready_intervals: t.Any, _check_intervals: t.Any, _duration: float) -> None: pass
-    def stop_signal_progress(_self) -> None: pass
-    def start_creation_progress(_self, _snapshots: t.List[Snapshot], _environment_naming_info: EnvironmentNamingInfo, _default_catalog: t.Optional[str]) -> None: pass
-    def update_creation_progress(_self, _snapshot: SnapshotInfoLike) -> None: pass
-    def stop_creation_progress(_self, _success: bool = True) -> None: pass
-    def start_cleanup(_self, _ignore_ttl: bool) -> bool: return True
-    def update_cleanup_progress(_self, _object_name: str) -> None: pass
-    def stop_cleanup(_self, _success: bool = True) -> None: pass
-    def start_promotion_progress(_self, _snapshots: t.List[SnapshotTableInfo], _environment_naming_info: EnvironmentNamingInfo, _default_catalog: t.Optional[str]) -> None: pass
-    def update_promotion_progress(_self, _snapshot: SnapshotInfoLike, _promoted: bool) -> None: pass
-    def stop_promotion_progress(_self, _success: bool = True) -> None: pass
-    def start_snapshot_migration_progress(_self, _total_tasks: int) -> None: pass
-    def update_snapshot_migration_progress(_self, _migration_status: str) -> None: pass
-    def stop_snapshot_migration_progress(_self, _success: bool = True) -> None: pass
-    def start_migration_progress(_self, _total_tasks: int) -> None: pass
-    def update_migration_progress(_self, _migration_status: str) -> None: pass
-    def stop_migration_progress(_self, _success: bool = True) -> None: pass
-    def start_environment_migration_progress(_self, _total_tasks: int) -> None: pass
-    def update_environment_migration_progress(_self, _migration_status: str) -> None: pass
-    def stop_environment_migration_progress(_self, _success: bool = True) -> None: pass
-    def log_status_update(_self, _message: str) -> None: pass
-    def loading_start(_self, _message: t.Optional[str] = None) -> uuid.UUID: return uuid.uuid4()
-    def loading_stop(_self, _id: uuid.UUID) -> None: pass
-    def log_error(_self, _message: str, *_args: t.Any, **_kwargs: t.Any) -> None: pass
-    def log_success(_self, _message: str, *_args: t.Any, **_kwargs: t.Any) -> None: pass
-    def log_destructive_change(_self, _snapshot_name: str, _alter_operations: t.List[t.Any], _added_columns: t.Set[str], _removed_columns: t.Set[str]) -> None: pass
-    def log_failed_models(_self, _errors: t.List[NodeExecutionFailedError]) -> None: pass  # On ignore les fails
-    def log_test_results(_self, _result: ModelTextTestResult, _target_dialect: str) -> None: pass
-    def show_linter_violations(_self, _violations: t.List[RuleViolation], _model: Model, _is_error: bool = False) -> None: pass
-    def start_state_export(_self, _total_versions: int, _total_snapshots: int, _total_environments: int) -> None: pass
-    def update_state_export_progress(_self, _total_versions: int, _versions_exported: int, _total_snapshots: int, _snapshots_exported: int, _total_environments: int, _environments_exported: int) -> None: pass
-    def stop_state_export(_self, _success: bool = True) -> None: pass
-    def start_state_import(_self, _total_versions: int, _total_snapshots: int, _total_environments: int, _total_plan_dags: int = 0) -> None: pass
-    def update_state_import_progress(_self, _total_versions: int, _versions_imported: int, _total_snapshots: int, _snapshots_imported: int, _total_environments: int, _environments_exported: int, _total_plan_dags: int = 0, _plan_dags_imported: int = 0) -> None: pass
-    def stop_state_import(_self, _success: bool = True) -> None: pass
-    def start_destroy(_self, _snapshot_ids: t.Set[SnapshotId], _environment_naming_info: EnvironmentNamingInfo, _default_catalog: t.Optional[str]) -> None: pass
-    def stop_destroy(_self, _success: bool = True) -> None: pass
-    def print_environments(_self, _environments_summary: t.List[EnvironmentSummary]) -> None: pass
-    def show_environment_difference_summary(_self, _name: str, _from_environment_name: str, _to_environment_name: str, _added: t.Set[str], _removed_environment_naming_info: EnvironmentNamingInfo, _removed: t.Set[str], _modified_snapshots: t.Dict[str, t.Tuple[SnapshotTableInfo, SnapshotTableInfo]]) -> None: pass
-    def show_table_diff(_self, _table_diff: TableDiff, _environment_naming_info: EnvironmentNamingInfo, _default_catalog: t.Optional[str], _snapshots: t.Dict[str, Snapshot], _tables: t.List[str]) -> None: pass
-    def update_table_diff_progress(_self, _model: str) -> None: pass
-    def start_table_diff_progress(_self, _models_to_diff: int) -> None: pass
-    def start_table_diff_model_progress(_self, _model: str) -> None: pass
-    def stop_table_diff_progress(_self, _success: bool = True) -> None: pass
-    def log_migration_status(_self, _message: str) -> None: pass
-    def log_warning(_self, _message: str) -> None: pass
+    def log_skipped_models(self, snapshot_names: t.Set[str]) -> None: 
+        self.skipped_models.update(snapshot_names)
+    def start_plan_evaluation(self, plan: EvaluatablePlan) -> None: pass
+    def stop_plan_evaluation(self) -> None: pass
+    def start_evaluation_progress(self, batched_intervals: t.Dict[Snapshot, t.Any], environment_naming_info: EnvironmentNamingInfo, default_catalog: t.Optional[str], audit_only: bool = False) -> None: pass
+    def start_snapshot_evaluation_progress(self, snapshot: Snapshot, audit_only: bool = False) -> None: pass
+    def stop_evaluation_progress(self, success: bool = True) -> None: pass
+    def start_signal_progress(self, snapshot: Snapshot, default_catalog: t.Optional[str], environment_naming_info: EnvironmentNamingInfo) -> None: pass
+    def update_signal_progress(self, snapshot: Snapshot, signal_name: str, signal_idx: int, total_signals: int, ready_intervals: t.Any, check_intervals: t.Any, duration: float) -> None: pass
+    def stop_signal_progress(self) -> None: pass
+    def start_creation_progress(self, snapshots: t.List[Snapshot], environment_naming_info: EnvironmentNamingInfo, default_catalog: t.Optional[str]) -> None: pass
+    def update_creation_progress(self, snapshot: SnapshotInfoLike) -> None: pass
+    def stop_creation_progress(self, success: bool = True) -> None: pass
+    def start_cleanup(self, ignore_ttl: bool) -> bool: return True
+    def update_cleanup_progress(self, object_name: str) -> None: pass
+    def stop_cleanup(self, success: bool = True) -> None: pass
+    def start_promotion_progress(self, snapshots: t.List[SnapshotTableInfo], environment_naming_info: EnvironmentNamingInfo, default_catalog: t.Optional[str]) -> None: pass
+    def update_promotion_progress(self, snapshot: SnapshotInfoLike, promoted: bool) -> None: pass
+    def stop_promotion_progress(self, success: bool = True) -> None: pass
+    def start_snapshot_migration_progress(self, _total_tasks: int) -> None: pass
+    def update_snapshot_migration_progress(self, migration_status: str) -> None: pass
+    def stop_snapshot_migration_progress(self, success: bool = True) -> None: pass
+    def start_migration_progress(self, total_tasks: int) -> None: pass
+    def update_migration_progress(self, migration_status: str) -> None: pass
+    def stop_migration_progress(self, success: bool = True) -> None: pass
+    def start_environment_migration_progress(self, total_tasks: int) -> None: pass
+    def update_environment_migration_progress(self, migration_status: str) -> None: pass
+    def stop_environment_migration_progress(self, success: bool = True) -> None: pass
+    def log_status_update(self, message: str) -> None: pass
+    def loading_start(self, message: t.Optional[str] = None) -> uuid.UUID: return uuid.uuid4()
+    def loading_stop(self, id: uuid.UUID) -> None: pass
+    def log_error(self, message: str, *args: t.Any, **kwargs: t.Any) -> None: pass
+    def log_success(self, message: str, *args: t.Any, **kwargs: t.Any) -> None: pass
+    def log_destructive_change(self, snapshot_name: str, alter_operations: t.List[t.Any], added_columns: t.Set[str], removed_columns: t.Set[str]) -> None: pass
+    def log_failed_models(self, errors: t.List[NodeExecutionFailedError]) -> None: pass  # On ignore les fails
+    def log_test_results(self, result: ModelTextTestResult, target_dialect: str) -> None: pass
+    def show_linter_violations(self, violations: t.List[RuleViolation], model: Model, is_error: bool = False) -> None: pass
+    def start_state_export(self, total_versions: int, total_snapshots: int, total_environments: int) -> None: pass
+    def update_state_export_progress(self, total_versions: int, versions_exported: int, total_snapshots: int, snapshots_exported: int, total_environments: int, environments_exported: int) -> None: pass
+    def stop_state_export(self, success: bool = True) -> None: pass
+    def start_state_import(self, total_versions: int, total_snapshots: int, total_environments: int, total_plan_dags: int = 0) -> None: pass
+    def update_state_import_progress(self, total_versions: int, versions_imported: int, total_snapshots: int, snapshots_imported: int, total_environments: int, environments_exported: int, total_plan_dags: int = 0, plan_dags_imported: int = 0) -> None: pass
+    def stop_state_import(self, success: bool = True) -> None: pass
+    def start_destroy(self, snapshot_ids: t.Set[SnapshotId], environment_naming_info: EnvironmentNamingInfo, default_catalog: t.Optional[str]) -> None: pass
+    def stop_destroy(self, success: bool = True) -> None: pass
+    def print_environments(self, environments_summary: t.List[EnvironmentSummary]) -> None: pass
+    def show_environment_difference_summary(self, name: str, from_environment_name: str, to_environment_name: str, added: t.Set[str], removed_environment_naming_info: EnvironmentNamingInfo, removed: t.Set[str], modified_snapshots: t.Dict[str, t.Tuple[SnapshotTableInfo, SnapshotTableInfo]]) -> None: pass
+    def show_table_diff(self, table_diff: TableDiff, environment_naming_info: EnvironmentNamingInfo, default_catalog: t.Optional[str], snapshots: t.Dict[str, Snapshot], tables: t.List[str]) -> None: pass
+    def update_table_diff_progress(self, model: str) -> None: pass
+    def start_table_diff_progress(self, models_to_diff: int) -> None: pass
+    def start_table_diff_model_progress(self, model: str) -> None: pass
+    def stop_table_diff_progress(self, success: bool = True) -> None: pass
+    def log_migration_status(self, message: str) -> None: pass
+    def log_warning(self, message: str) -> None: pass
     def plan(
-        _self,
-        _plan_builder: t.Any,
-        _auto_apply: bool,
-        _default_catalog: t.Optional[str],
-        _no_diff: bool = False,
-        _no_prompts: bool = False,
+        self,
+        plan_builder: t.Any,  # type: ignore[reportUnknownArgumentType]
+        auto_apply: bool,
+        default_catalog: t.Optional[str],
+        no_diff: bool = False,
+        no_prompts: bool = False,
     ) -> None:
         pass
-    def show_intervals(_self, _intervals: t.Any) -> None: pass
-    def show_model_difference_summary(_self, _model_diff: t.Any) -> None: pass
-    def show_row_diff(_self, _row_diff: t.Any) -> None: pass
-    def show_schema_diff(_self, _schema_diff: t.Any) -> None: pass
-    def show_sql(_self, _sql: str) -> None: pass
-    def show_table_diff_details(_self, _table_diff: t.Any) -> None: pass
-    def show_table_diff_summary(_self, _table_diff: t.Any) -> None: pass
-    def start_env_migration_progress(_self, _total_tasks: int) -> None: pass
-    def stop_env_migration_progress(_self, _success: bool = True) -> None: pass
-    def update_env_migration_progress(_self, _migration_status: str) -> None: pass
+    def show_intervals(self, intervals: t.Any) -> None: pass
+    def show_model_difference_summary(self, model_diff: t.Any) -> None: pass
+    def show_row_diff(self, row_diff: t.Any) -> None: pass
+    def show_schema_diff(self, schema_diff: t.Any) -> None: pass
+    def show_sql(self, sql: str) -> None: pass
+    def show_table_diff_details(self, table_diff: t.Any) -> None: pass
+    def show_table_diff_summary(self, table_diff: t.Any) -> None: pass
+    def start_env_migration_progress(self, total_tasks: int) -> None: pass
+    def stop_env_migration_progress(self, success: bool = True) -> None: pass
+    def update_env_migration_progress(self, migration_status: str) -> None: pass
 
 
 @contextmanager

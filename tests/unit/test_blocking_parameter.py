@@ -39,27 +39,29 @@ class TestBlockingParameter:
                 f"Check {check_spec.name} should be blocking=False"
             )
 
-            # Verify that metadata includes audit_blocking
-            assert "audit_blocking" in check_spec.metadata, (
-                f"Check {check_spec.name} should have audit_blocking in metadata"
-            )
-            # Blocking should be False for explicit non-blocking audits, True otherwise
-            if check_spec.name.endswith("_non_blocking"):
-                assert check_spec.metadata["audit_blocking"] is False, (
-                    f"Check {check_spec.name} should have audit_blocking=False for non-blocking variant"
+            # Verify that metadata includes audit_blocking (except for sqlmesh_execution_status)
+            if check_spec.name != "sqlmesh_execution_status":
+                assert "audit_blocking" in check_spec.metadata, (
+                    f"Check {check_spec.name} should have audit_blocking in metadata"
                 )
-            else:
-                assert check_spec.metadata["audit_blocking"] is True, (
-                    f"Check {check_spec.name} should have audit_blocking=True"
-                )
+                # Blocking should be False for explicit non-blocking audits, True otherwise
+                if check_spec.name.endswith("_non_blocking"):
+                    assert check_spec.metadata["audit_blocking"] is False, (
+                        f"Check {check_spec.name} should have audit_blocking=False for non-blocking variant"
+                    )
+                else:
+                    assert check_spec.metadata["audit_blocking"] is True, (
+                        f"Check {check_spec.name} should have audit_blocking=True"
+                    )
 
         print("\n✅ All checks are correctly set to blocking=False!")
 
-        # Verify we have the expected audits (including the non-blocking variant)
+        # Verify we have the expected audits (including the non-blocking variant and sqlmesh_execution_status)
         expected_audits = {
             "number_of_rows",
             "not_null",
             "not_constant_non_blocking",
+            "sqlmesh_execution_status",
         }
         actual_audits = {check_spec.name for check_spec in check_specs}
         assert actual_audits == expected_audits, (

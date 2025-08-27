@@ -559,7 +559,7 @@ class TestPhase1HelperFunctions:
         # Service-based path
         with pytest.MonkeyPatch().context() as m:
             m.setattr(
-                "dg_sqlmesh.notifier_service.get_audit_failures",
+                "dg_sqlmesh.sqlmesh_asset_execution_utils._get_notifier_failures_noarg",
                 lambda: [{"model": "s.m", "audit": "a1"}],
             )
             failures = _get_notifier_failures(Mock())

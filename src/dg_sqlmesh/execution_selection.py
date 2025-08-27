@@ -18,7 +18,7 @@ def _log_run_selection(
     context.log.info(f"Selected assets in this run: {selected_asset_keys}")
 
 
-def _select_models_to_materialize(
+def _select_models_to_materialize( #TODO check if still in use and find if another method replace it somewhere like "_select_models_to_materialize" in sqlmesh_asset_execution_utils.py
     selected_asset_keys: List[AssetKey], sqlmesh: SQLMeshResource
 ) -> List[Any]:
     """Resolve SQLMesh models to materialize from selection; raise if none found."""

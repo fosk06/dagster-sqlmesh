@@ -245,6 +245,8 @@ def test_non_blocking_audit_warns_without_downstream_block() -> None:
         non_blocking_audit_warnings,
         notifier_audit_failures,
         affected_downstream_asset_keys,
+        sqlmesh_executed_models,
+        sqlmesh_skipped_models,
     ) = process_sqlmesh_results(
         context, results_resource, "itest_run_non_blocking_only"
     )
