@@ -80,7 +80,11 @@ def _init_execution_event_buffers(
     return _init_execution_event_buffers_ext()
 
 
-def _get_notifier_failures(_: SQLMeshResource | None = None) -> List[Dict]: #TODO check if still in use and find if another method replace it somewhere
+def _get_notifier_failures(
+    _: SQLMeshResource | None = None,
+) -> List[
+    Dict
+]:  # TODO check if still in use and find if another method replace it somewhere
     """Compatibility shim delegating to the no-arg notifier helper.
 
     Tests may call this with an argument; ignore it.
@@ -202,40 +206,48 @@ def execute_sqlmesh_materialization(
         context.log.debug("Notifier state cleared at run start")
     except Exception:
         pass
-    
+
     # Use context manager for clean console tracking
     with sqlmesh_run_tracker(sqlmesh.context) as tracker:
-        plan = sqlmesh.materialize_assets_threaded(models_to_materialize, context=context)
+        plan = sqlmesh.materialize_assets_threaded(
+            models_to_materialize, context=context
+        )
         context.log.debug("SQLMesh materialization completed")
-        
+
         # Get tracking results
         tracking_results = tracker.get_results()
-        context.log.info(f"SQLMesh execution tracking: {tracking_results['total_run']} executed, {tracking_results['total_skipped']} skipped")
-        
+        context.log.info(
+            f"SQLMesh execution tracking: {tracking_results['total_run']} executed, {tracking_results['total_skipped']} skipped"
+        )
+
         # Store which models were actually executed vs skipped for later use
-        sqlmesh_executed_models = tracking_results['run_models']
-        
+        sqlmesh_executed_models = tracking_results["run_models"]
+
         # DEDUCTION LOGIC: Models skipped = Models requested - Models executed
         # This handles cron-based skips that our tracker doesn't capture directly
         requested_models = [model.name for model in models_to_materialize]
-        
+
         # Normalize executed model names to match requested format
         # Remove quotes and database prefix to match model.name format
         normalized_executed_models = []
         for executed_model in sqlmesh_executed_models:
             # Remove quotes and split by dots
-            clean_name = executed_model.replace('"', '')
-            parts = clean_name.split('.')
+            clean_name = executed_model.replace('"', "")
+            parts = clean_name.split(".")
             if len(parts) >= 3:
                 # Keep only schema.model format (skip database)
                 normalized_name = f"{parts[1]}.{parts[2]}"
                 normalized_executed_models.append(normalized_name)
             else:
                 normalized_executed_models.append(clean_name)
-        
-        sqlmesh_skipped_models = list(set(requested_models) - set(normalized_executed_models))
-        
-        context.log.info(f"Execution deduction: {len(requested_models)} requested, {len(sqlmesh_executed_models)} executed, {len(sqlmesh_skipped_models)} deduced as skipped")
+
+        sqlmesh_skipped_models = list(
+            set(requested_models) - set(normalized_executed_models)
+        )
+
+        context.log.info(
+            f"Execution deduction: {len(requested_models)} requested, {len(sqlmesh_executed_models)} executed, {len(sqlmesh_skipped_models)} deduced as skipped"
+        )
 
     # Capture all results
     # Console removed → no legacy failed models events
@@ -279,7 +291,7 @@ def execute_sqlmesh_materialization(
         f"Blocking failed assets: {blocking_failed_asset_keys} | Downstream affected: {list(affected_downstream_asset_keys)}"
     )
 
-        # Build shared result payload
+    # Build shared result payload
     results: Dict[str, Any] = {
         "failed_check_results": failed_check_results,
         "skipped_models_events": skipped_models_events,
@@ -304,7 +316,14 @@ def process_sqlmesh_results(
 ) -> (
     Tuple[List[AssetCheckResult], List[Dict], List[Dict]]
     | Tuple[List[AssetCheckResult], List[Dict], List[Dict], List[Dict], List[AssetKey]]
-    | Tuple[List[AssetCheckResult], List[Dict], List[Dict], List[Dict], List[AssetKey], List[str]]
+    | Tuple[
+        List[AssetCheckResult],
+        List[Dict],
+        List[Dict],
+        List[Dict],
+        List[AssetKey],
+        List[str],
+    ]
 ):
     """
     Retrieve and process shared SQLMesh results for this run.
@@ -334,7 +353,9 @@ def process_sqlmesh_results(
     sqlmesh_executed_models = results.get("sqlmesh_executed_models", [])
     sqlmesh_skipped_models = results.get("sqlmesh_skipped_models", [])
 
-    context.log.info(f"Retrieved results: failed={len(failed_check_results)}, skipped={len(skipped_models_events)}, nb_warn={len(non_blocking_audit_warnings)}, notifier_failures={len(notifier_audit_failures)}")
+    context.log.info(
+        f"Retrieved results: failed={len(failed_check_results)}, skipped={len(skipped_models_events)}, nb_warn={len(non_blocking_audit_warnings)}, notifier_failures={len(notifier_audit_failures)}"
+    )
 
     return (
         failed_check_results,
@@ -414,7 +435,6 @@ def handle_audit_failures(
             logger=context.log,
         )
 
-
         return MaterializeResult(
             asset_key=current_asset_spec.key,
             metadata={"status": "materialization_success_audit_failed"},
@@ -469,7 +489,7 @@ def handle_successful_execution(
             # Skip sqlmesh_execution_status - we handle it separately below
             if check.name == "sqlmesh_execution_status":
                 continue
-                
+
             if check.name in non_blocking_names:
                 fail = next(
                     (
@@ -508,13 +528,17 @@ def handle_successful_execution(
         # Handle execution status check for ALL models
         # Check if this model was executed by SQLMesh (using tracker results)
         model_was_executed_by_sqlmesh = current_model_name in sqlmesh_executed_models
-        
+
         # Find the execution status check spec
         execution_status_check = next(
-            (check for check in current_model_checks if check.name == "sqlmesh_execution_status"),
-            None
+            (
+                check
+                for check in current_model_checks
+                if check.name == "sqlmesh_execution_status"
+            ),
+            None,
         )
-        
+
         if execution_status_check:
             if model_was_executed_by_sqlmesh:
                 # Model was executed → SUCCESS
@@ -547,14 +571,12 @@ def handle_successful_execution(
                     )
                 )
 
-
         return MaterializeResult(
             asset_key=current_asset_spec.key,
             metadata={"status": "success"},
             check_results=check_results,
         )
     else:
-
         return MaterializeResult(
             asset_key=current_asset_spec.key, metadata={"status": "success"}
         )

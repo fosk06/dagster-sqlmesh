@@ -6,7 +6,7 @@ from dagster import AssetKey
 from .resource import SQLMeshResource
 
 
-def _compute_blocking_and_downstream( #TODO check if still in use and find if another method replace it somewhere
+def _compute_blocking_and_downstream(  # TODO check if still in use and find if another method replace it somewhere
     sqlmesh: SQLMeshResource, notifier_audit_failures: List[Dict]
 ) -> Tuple[List[AssetKey], Set[AssetKey]]:
     """Compute failing blocking asset keys and affected downstream asset keys."""

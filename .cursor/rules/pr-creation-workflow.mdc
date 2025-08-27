@@ -1,0 +1,211 @@
+---
+description: PR Creation Workflow - Local validation before GitHub PR creation
+---
+
+# PR Creation Workflow
+
+This rule defines the complete process for creating a Pull Request, ensuring all CI/CD checks pass locally before submission.
+
+## 📋 Pre-PR Checklist
+
+Before creating a PR using `gh pr create`, you MUST run the following commands locally to mirror the CI/CD pipeline:
+
+### 1. 🔧 Install Dependencies
+
+```bash
+# Ensure dependencies are up to date
+uv sync --group dev
+uv pip install -e .
+```
+
+### 2. 📦 Version Consistency Check
+
+```bash
+# Check version consistency between pyproject.toml and __init__.py
+PYPROJECT_VERSION=$(grep 'version = ' pyproject.toml | cut -d'"' -f2)
+INIT_VERSION=$(grep '__version__ = ' src/dg_sqlmesh/__init__.py | cut -d'"' -f2)
+echo "pyproject.toml version: $PYPROJECT_VERSION"
+echo "__init__.py version: $INIT_VERSION"
+if [ "$PYPROJECT_VERSION" != "$INIT_VERSION" ]; then
+  echo "❌ Version mismatch between pyproject.toml and __init__.py"
+  exit 1
+fi
+echo "✅ Versions are consistent"
+```
+
+### 3. 🎨 Code Quality Checks (MANDATORY)
+
+```bash
+# Ruff linting - MUST pass before PR
+echo "🔍 Running ruff linting..."
+uv run ruff check --ignore=F401,F811,E402 src/dg_sqlmesh/ tests/
+
+# Ruff formatting check - MUST pass before PR
+echo "🎨 Running ruff formatting check..."
+uv run ruff format --check src/dg_sqlmesh/ tests/
+
+# If formatting issues, auto-fix them:
+# uv run ruff format src/dg_sqlmesh/ tests/
+```
+
+### 4. 🦅 Dead Code Detection
+
+```bash
+# Vulture dead code detection (informational)
+echo "🦅 Running vulture to detect dead code..."
+uv run vulture src/dg_sqlmesh/ --min-confidence 80 || true
+```
+
+### 5. 📊 Load Test Data
+
+```bash
+# Load test data (required for tests)
+echo "📊 Loading test data..."
+uv run --group dev python tests/load_jaffle_data.py
+```
+
+### 6. 🧪 Run Complete Test Suite (MANDATORY)
+
+```bash
+# Run tests with coverage - MUST pass before PR
+echo "🧪 Running tests with coverage..."
+uv run coverage run -m pytest tests/ -v --tb=short
+uv run coverage report --show-missing
+```
+
+### 7. 🔨 Build Verification
+
+```bash
+# Clean and build package
+rm -rf dist/ build/ src/*.egg-info/
+echo "🔨 Building package..."
+uv build
+echo "📦 Build artifacts:"
+ls -la dist/
+
+# Verify build contents
+echo "🔍 Verifying wheel contents..."
+uv run python -m zipfile -l dist/*.whl
+```
+
+### 8. 🔒 Security Checks (for dependency changes)
+
+```bash
+# Only run if pyproject.toml or uv.lock changed
+echo "🔒 Running security audit..."
+uv run pip-audit --desc || true
+uv run safety check || true
+```
+
+## 🚀 PR Creation Process
+
+### Complete Pre-PR Script
+
+Create this script and run it before every PR:
+
+```bash
+#!/bin/bash
+# File: scripts/pre-pr-check.sh
+
+set -e  # Exit on any error
+
+echo "🔄 Starting pre-PR validation..."
+
+# 1. Dependencies
+echo "📦 Installing dependencies..."
+uv sync --group dev
+uv pip install -e .
+
+# 2. Version consistency
+echo "🔍 Checking version consistency..."
+PYPROJECT_VERSION=$(grep 'version = ' pyproject.toml | cut -d'"' -f2)
+INIT_VERSION=$(grep '__version__ = ' src/dg_sqlmesh/__init__.py | cut -d'"' -f2)
+if [ "$PYPROJECT_VERSION" != "$INIT_VERSION" ]; then
+  echo "❌ Version mismatch between pyproject.toml and __init__.py"
+  exit 1
+fi
+echo "✅ Versions are consistent"
+
+# 3. Code quality (CRITICAL)
+echo "🎨 Running ruff checks..."
+uv run ruff check --ignore=F401,F811,E402 src/dg_sqlmesh/ tests/
+uv run ruff format --check src/dg_sqlmesh/ tests/
+
+# 4. Dead code detection
+echo "🦅 Running vulture..."
+uv run vulture src/dg_sqlmesh/ --min-confidence 60 || true
+
+# 5. Load test data
+echo "📊 Loading test data..."
+uv run --group dev python tests/load_jaffle_data.py
+
+# 6. Run tests (CRITICAL)
+echo "🧪 Running test suite..."
+uv run coverage run -m pytest tests/ -v --tb=short
+uv run coverage report --show-missing
+
+# 7. Build verification
+echo "🔨 Building package..."
+rm -rf dist/ build/ src/*.egg-info/
+uv build
+uv run python -m zipfile -l dist/*.whl
+
+echo "✅ All pre-PR checks passed! Ready to create PR."
+```
+
+### GitHub PR Creation
+
+```bash
+# After all checks pass, create the PR
+gh pr create \
+  --title "✨ Your descriptive title" \
+  --body "## Overview
+
+Detailed description of changes...
+
+## Testing
+- ✅ All ruff checks pass
+- ✅ All tests pass (162/162)
+- ✅ Package builds successfully
+- ✅ No breaking changes
+
+## Related
+- Fixes #issue_number
+- Related to #other_issue" \
+  --draft  # Start as draft, mark ready when truly ready
+```
+
+## ⚠️ Critical Rules
+
+1. **NEVER** create a PR without running local validation first
+2. **ALL** ruff checks MUST pass (no exceptions for --ignore)
+3. **ALL** tests MUST pass (162/162)
+4. **ALWAYS** run the complete pipeline locally
+5. **USE** meaningful commit messages following conventional commits
+6. **START** PRs as drafts, mark ready only after review
+
+## 🔧 Quick Commands Reference
+
+```bash
+# Minimal pre-PR validation (fastest)
+uv run ruff check src/dg_sqlmesh/ tests/ && \
+uv run ruff format --check src/dg_sqlmesh/ tests/ && \
+uv run pytest tests/ -v
+
+# Complete pre-PR validation (recommended)
+./scripts/pre-pr-check.sh
+
+# Create PR after validation
+gh pr create --title "feat: your change" --body "Description" --draft
+```
+
+## 📚 Related Files
+
+- CI/CD Pipeline: [.github/workflows/test.yml](mdc:.github/workflows/test.yml)
+- Security Pipeline: [.github/workflows/security.yml](mdc:.github/workflows/security.yml)
+- Project Config: [pyproject.toml](mdc:pyproject.toml)
+- Test Commands: [.cursor/rules/test-commands.mdc](mdc:.cursor/rules/test-commands.mdc)
+
+---
+
+**Remember: The goal is to catch issues locally before they reach CI/CD, saving time and ensuring code quality! 🎯**
