@@ -161,9 +161,6 @@ def sqlmesh_assets_factory(
         ):
             _assert_instance_for_compute()
             context.log.info(f"Processing SQLMesh model: {current_model_name}")
-            context.log.debug(f"Run ID: {context.run_id}")
-            context.log.debug(f"Asset Key: {current_asset_spec.key}")
-            context.log.debug(f"Selected assets: {context.selected_asset_keys}")
 
             # Check if SQLMesh was already executed in this run
             run_id = context.run_id
@@ -178,10 +175,6 @@ def sqlmesh_assets_factory(
                     run_id,
                     context.selected_asset_keys,
                 )
-            else:
-                context.log.debug(
-                    "Reusing shared SQLMesh results for this run_id (no fresh run)"
-                )
 
             # Retrieve results for this run
             (
@@ -193,9 +186,6 @@ def sqlmesh_assets_factory(
                 sqlmesh_executed_models,
                 sqlmesh_skipped_models,
             ) = process_sqlmesh_results(context, sqlmesh_results, run_id)
-            context.log.info(
-                f"Retrieved results: failed={len(failed_check_results)}, skipped={len(skipped_models_events)}, nb_warn={len(non_blocking_audit_warnings)}, notifier_failures={len(notifier_audit_failures)}"
-            )
 
             # Check the status for our specific model
             model_was_skipped, model_has_audit_failures = check_model_status(

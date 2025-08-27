@@ -589,6 +589,30 @@ This separation ensures:
 - ✅ **Reliable orchestration** : Dagster only runs approved models
 - ✅ **CI/CD friendly** : Standard SQLMesh workflow for deployments
 
+### **Quick Testing Commands**
+
+For quick testing of individual models during development:
+
+```bash
+# Test a single model (useful for debugging)
+uv run dg launch --assets "jaffle_db/sqlmesh_jaffle_platform/stg_tweets"
+
+# Test multiple models
+uv run dg launch --assets "jaffle_db/sqlmesh_jaffle_platform/stg_customers,jaffle_db/sqlmesh_jaffle_platform/stg_orders"
+
+# Test ALL SQLMesh models at once
+uv run dg launch --assets "jaffle_db/sqlmesh_jaffle_platform/seed_model,jaffle_db/sqlmesh_jaffle_platform/stg_customers,jaffle_db/sqlmesh_jaffle_platform/stg_order_items,jaffle_db/sqlmesh_jaffle_platform/stg_orders,jaffle_db/sqlmesh_jaffle_platform/stg_products,jaffle_db/sqlmesh_jaffle_platform/stg_stores,jaffle_db/sqlmesh_jaffle_platform/stg_supplies,jaffle_db/sqlmesh_jaffle_platform/stg_tweets,jaffle_db/sqlmesh_jaffle_platform/incremental_model,jaffle_db/sqlmesh_jaffle_platform/products,jaffle_db/sqlmesh_jaffle_platform/stores,jaffle_db/sqlmesh_jaffle_platform/customers,jaffle_db/sqlmesh_jaffle_platform/order_items,jaffle_db/sqlmesh_jaffle_platform/full_model,jaffle_db/sqlmesh_jaffle_platform/supplies,jaffle_db/sqlmesh_jaffle_platform/tweets,jaffle_db/sqlmesh_jaffle_platform/orders"
+
+# Test with specific partition
+uv run dg launch --assets "jaffle_db/sqlmesh_jaffle_platform/stg_tweets" --partition "2024-01-01"
+```
+
+These commands are particularly useful for:
+
+- ✅ **Testing skip behavior** : Models with `@daily` cron will be skipped outside their schedule
+- ✅ **Debugging audit failures** : Quick feedback on blocking vs non-blocking audits
+- ✅ **Verifying execution status** : See the new `sqlmesh_execution_status` AssetCheck results
+
 ## Dagster Component (YAML Configuration)
 
 The module also provides a Dagster component for declarative YAML configuration:

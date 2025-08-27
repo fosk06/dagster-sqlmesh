@@ -154,6 +154,15 @@ print('Non-existent run:', resource.has_results('non_existent'))
 "
 ```
 
+## Run materialization with command line
+
+```bash
+# in the folder of your dagster project
+uv run dg launch --assets "jaffle_db/sqlmesh_jaffle_platform/stg_tweets"
+# run materialization for all sqlmesh assets using search string like in the UI
+uv run dg asset materialize --select 'kind:"sqlmesh" and tag:"sqlmesh"'
+```
+
 ## Integration Testing
 
 ### Test Complete Integration

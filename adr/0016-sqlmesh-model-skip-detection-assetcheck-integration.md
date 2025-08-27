@@ -8,30 +8,36 @@
 
 ### Problem Statement
 
-SQLMesh peut "skipper" des modèles pour plusieurs raisons :
-1. **Cron-based skips** : Le modèle a un cron `@daily` mais il n'est pas encore l'heure
-2. **No changes detected** : SQLMesh détermine qu'aucun changement n'est nécessaire
-3. **Upstream failures** : Les modèles en amont ont échoué
+SQLMesh can "skip" models for several reasons:
 
-**Avant** : Tous les modèles retournaient un `MaterializeResult` avec statut "success", même ceux qui n'étaient pas réellement exécutés.
+1. **Cron-based skips**: The model has a `@daily` cron but it's not time yet
+2. **No changes detected**: SQLMesh determines no recalculation is needed
+3. **Upstream failures**: Upstream models have failed
 
-**Problème** : L'utilisateur ne pouvait pas distinguer entre :
-- ✅ Modèle réellement exécuté et recalculé
-- ⚠️ Modèle skippé (normal, attendu)
-- ❌ Modèle en échec
+**Before**: All models returned a `MaterializeResult` with "success" status, even those not actually executed.
+
+**Problem**: Users couldn't distinguish between:
+
+- ✅ Model actually executed and recalculated
+- ⚠️ Model skipped (normal, expected)
+- ❌ Model failed
 
 ### Requirements
 
-1. **Distinction claire** entre modèles exécutés et skippés
-2. **Feedback utilisateur** via l'interface Dagster
-3. **Intégration** avec le système AssetCheck existant
-4. **Non-bloquant** : Les skips ne doivent pas arrêter l'exécution
+1. **Clear distinction** between executed and skipped models
+2. **User feedback** via Dagster interface
+3. **Integration** with existing AssetCheck system
+4. **Non-blocking**: Skips should not stop execution
 
 ## Decision
 
 ### Solution Chosen: AssetCheck "sqlmesh_execution_status"
 
-Nous avons implémenté un **AssetCheck automatique** nommé `sqlmesh_execution_status` qui est ajouté à tous les modèles SQLMesh et qui indique leur statut d'exécution réel.
+We implemented an **automatic AssetCheck** named `sqlmesh_execution_status` that is added to all SQLMesh models and indicates their actual execution status.
+
+### Inspiration
+
+This approach is directly inspired by Dagster's **Freshness Checks**, which automatically add a `freshness_check` to all assets to indicate their freshness status. We apply the same pattern with `sqlmesh_execution_status` to indicate SQLMesh execution status.
 
 ### Architecture
 
@@ -51,13 +57,14 @@ Nous avons implémenté un **AssetCheck automatique** nommé `sqlmesh_execution_
 ### Key Components
 
 #### 1. Automatic AssetCheck Creation
+
 ```python
 def create_asset_checks_from_model(model: Any, asset_key: AssetKey) -> List[AssetCheckSpec]:
     """Creates AssetCheckSpec for audits of a SQLMesh model."""
     asset_checks = []
-    
+
     # ... existing audit checks ...
-    
+
     # Add automatic execution status check for ALL models
     asset_checks.append(
         AssetCheckSpec(
@@ -71,26 +78,27 @@ def create_asset_checks_from_model(model: Any, asset_key: AssetKey) -> List[Asse
             },
         )
     )
-    
+
     return asset_checks
 ```
 
 #### 2. Execution Status Logic
+
 ```python
-def handle_successful_execution(context, current_model_name, current_asset_spec, 
+def handle_successful_execution(context, current_model_name, current_asset_spec,
                               current_model_checks, sqlmesh_executed_models, ...):
     """Handle the case where the model executed successfully."""
-    
+
     # Check if this model was executed by SQLMesh
     model_was_executed_by_sqlmesh = current_model_name in sqlmesh_executed_models
-    
+
     # Find the execution status check spec
     execution_status_check = next(
-        (check for check in current_model_checks 
+        (check for check in current_model_checks
          if check.name == "sqlmesh_execution_status"),
         None
     )
-    
+
     if execution_status_check:
         if model_was_executed_by_sqlmesh:
             # Model was executed → SUCCESS
@@ -125,30 +133,31 @@ def handle_successful_execution(context, current_model_name, current_asset_spec,
 ```
 
 #### 3. Skip Detection Strategy
+
 ```python
 def execute_sqlmesh_materialization(context, sqlmesh, sqlmesh_results, run_id, selected_asset_keys):
     """Execute SQLMesh materialization with execution tracking."""
-    
+
     # Get all requested models
     requested_models = [model.name for model in models_to_materialize]
-    
+
     with sqlmesh_run_tracker(sqlmesh.context) as tracker:
         # SQLMesh execution happens here
         plan = sqlmesh.materialize_assets_threaded(models_to_materialize, context)
-        
+
         # Get executed models from tracker
         results = tracker.get_results()
         sqlmesh_executed_models = results['run_models']
-        
+
         # DEDUCE skipped models: requested - executed
         normalized_executed_models = [
-            _parse_snapshot_to_model_name(name) 
+            _parse_snapshot_to_model_name(name)
             for name in sqlmesh_executed_models
         ]
         sqlmesh_skipped_models = list(
             set(requested_models) - set(normalized_executed_models)
         )
-    
+
     # Store results for later use
     results_payload = {
         # ... existing fields ...
@@ -161,31 +170,34 @@ def execute_sqlmesh_materialization(context, sqlmesh, sqlmesh_results, run_id, s
 
 ### Positive
 
-1. **Transparence totale** : L'utilisateur voit exactement ce qui s'est passé
-2. **Non-bloquant** : Les skips n'arrêtent pas l'exécution
-3. **Intégration native** : Utilise le système AssetCheck Dagster existant
-4. **Automatique** : Pas besoin de configuration utilisateur
-5. **Consistent** : Même interface pour tous les modèles
+1. **Complete transparency**: Users see exactly what happened
+2. **Non-blocking**: Skips don't stop execution
+3. **Native integration**: Uses existing Dagster AssetCheck system
+4. **Automatic**: No user configuration needed
+5. **Consistent**: Same interface for all models
 
 ### Negative
 
-1. **Complexité** : Logique de déduction des modèles skippés
-2. **Dépendance** : Sur le bon fonctionnement du SimpleRunTracker
-3. **UI confusion** : Plus de checks à gérer dans l'interface Dagster
+1. **Complexity**: Logic for deducing skipped models
+2. **Dependency**: On proper functioning of SimpleRunTracker
+3. **UI overhead**: More checks to manage in Dagster interface
 
 ### Risks and Mitigations
 
 #### Risk: Incorrect Skip Detection
+
 - **Mitigation** : Tests unitaires complets, validation des résultats
 - **Monitoring** : Logs détaillés de la déduction
 
 #### Risk: Performance Impact
+
 - **Mitigation** : Sets Python optimisés, pas de requêtes supplémentaires
 - **Monitoring** : Mesure des temps d'exécution
 
 ## Implementation Details
 
 ### File Structure
+
 ```
 src/dg_sqlmesh/
 ├── sqlmesh_asset_check_utils.py      # AssetCheck creation with sqlmesh_execution_status
@@ -194,6 +206,7 @@ src/dg_sqlmesh/
 ```
 
 ### Data Flow
+
 ```
 1. SQLMesh Run Request
    ↓
@@ -213,11 +226,13 @@ src/dg_sqlmesh/
 ### UI Behavior
 
 #### SUCCESS Check (Model Executed)
+
 - **Color** : Vert ✅
 - **Message** : "Model was executed by SQLMesh"
 - **Status** : Passed
 
 #### WARNING Check (Model Skipped)
+
 - **Color** : Orange ⚠️
 - **Message** : "Model was skipped by SQLMesh"
 - **Status** : Failed (but non-blocking)
@@ -225,14 +240,17 @@ src/dg_sqlmesh/
 ### Skip Detection Logic
 
 #### 1. Direct Tracking
+
 - **Executed models** : Capturés via `update_snapshot_evaluation_progress`
 - **Explicit skips** : Capturés via `log_skipped_models` (upstream failures)
 
 #### 2. Deduction Logic
+
 - **Cron-based skips** : Déduits par `requested_models - executed_models`
 - **No-changes skips** : Déduits par `requested_models - executed_models`
 
 #### 3. Normalization
+
 ```python
 def _parse_snapshot_to_model_name(snapshot_name: str) -> str | None:
     """Convert '"db"."schema"."model"' to 'schema.model'."""
@@ -248,14 +266,17 @@ def _parse_snapshot_to_model_name(snapshot_name: str) -> str | None:
 ## Alternatives Considered
 
 ### 1. AssetObservation for Skipped Models
+
 - **Approach** : Retourner `AssetObservation` au lieu de `MaterializeResult`
 - **Rejection** : Trop complexe, cas edge nombreux, maintenance difficile
 
 ### 2. Custom Metadata in MaterializeResult
+
 - **Approach** : Ajouter un champ `execution_status` dans les métadonnées
 - **Rejection** : Moins visible pour l'utilisateur, pas d'intégration native Dagster
 
 ### 3. Separate AssetCheck for Each Skip Reason
+
 - **Approach** : Créer des checks spécifiques (`cron_skip`, `no_changes_skip`)
 - **Rejection** : Trop granulaire, complexité excessive
 

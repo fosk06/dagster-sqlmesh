@@ -134,10 +134,7 @@ def _model_was_skipped_from_events(
             if not snapshot_name:
                 continue
             skipped_model_name = _parse_snapshot_to_model_name(snapshot_name)
-            if logger:
-                logger.debug(
-                    f"Checking skipped model: {skipped_model_name} vs {current_model_name}"
-                )
+
             if skipped_model_name == current_model_name:
                 return True
     return False
@@ -151,10 +148,6 @@ def _model_has_failed_audits_for_asset(
 ) -> bool:
     """Check if any failed check result targets the current asset key."""
     for check_result in failed_check_results:
-        if logger:
-            logger.debug(
-                f"Checking failed check: {check_result.asset_key} vs {current_asset_spec_key}"
-            )
         if check_result.asset_key == current_asset_spec_key:
             if logger:
                 logger.error(
@@ -187,14 +180,6 @@ def execute_sqlmesh_materialization(
     Returns:
         Dict with captured execution results for later reuse in the same run
     """
-    # Log selection
-    context.log.info(
-        "First asset in run; launching SQLMesh execution for all selected assets"
-    )
-    context.log.debug(f"No existing results for run {run_id}")
-    context.log.info(f"Selected assets in this run: {selected_asset_keys}")
-
-    # Launch a single SQLMesh execution for all selected assets
     # Resolve models to materialize
     models_to_materialize = get_models_to_materialize(
         selected_asset_keys,
@@ -205,7 +190,6 @@ def execute_sqlmesh_materialization(
         raise Exception(f"No models found for selected assets: {selected_asset_keys}")
 
     # Single SQLMesh execution
-    # Run single SQLMesh execution and get plan
     context.log.info(
         f"Materializing {len(models_to_materialize)} models: {[m.name for m in models_to_materialize]}"
     )
@@ -258,12 +242,8 @@ def execute_sqlmesh_materialization(
     # Console disabled path
     # Initialize result buffers (console disabled)
     failed_check_results: List[AssetCheckResult] = []
-    context.log.debug("Failed check results count: 0")
-    context.log.debug("Processing skipped models events... (skipped, console disabled)")
     skipped_models_events: List[Dict] = []
-    context.log.debug(f"Skipped models events count: {len(skipped_models_events)}")
     evaluation_events: List[Dict] = []
-    context.log.debug(f"Evaluation events count: {len(evaluation_events)}")
     non_blocking_audit_warnings: List[Dict] = []
 
     # Store results in the shared resource
@@ -313,8 +293,6 @@ def execute_sqlmesh_materialization(
     }
 
     sqlmesh_results.store_results(run_id, results)
-    context.log.info(f"Stored SQLMesh results for run {run_id}")
-    # Keep store confirmation
     # Note: Do NOT clear notifier state here as it contains audit failures
     # that need to be retrieved by the caller for check result creation
 
@@ -339,9 +317,6 @@ def process_sqlmesh_results(
       - affected_downstream_asset_keys
       - sqlmesh_skipped_models
     """
-    context.log.info(f"Using existing SQLMesh results from run {run_id}")
-    context.log.debug(f"Found existing results for run {run_id}")
-
     # Retrieve results for this run
     results = sqlmesh_results.get_results(run_id)
     if results is None:
@@ -359,17 +334,7 @@ def process_sqlmesh_results(
     sqlmesh_executed_models = results.get("sqlmesh_executed_models", [])
     sqlmesh_skipped_models = results.get("sqlmesh_skipped_models", [])
 
-    context.log.debug("Processing results for model")
-    context.log.debug(f"Failed check results: {len(failed_check_results)}")
-    context.log.debug(f"Skipped models events: {len(skipped_models_events)}")
-    context.log.debug(
-        f"Non-blocking audit warnings: {len(non_blocking_audit_warnings)}"
-    )
-    context.log.debug(
-        f"Notifier audit failures: {len(notifier_audit_failures)} | affected downstream: {len(affected_downstream_asset_keys)}"
-    )
-    context.log.debug(f"SQLMesh executed models: {len(sqlmesh_executed_models)}")
-    context.log.debug(f"SQLMesh skipped models: {len(sqlmesh_skipped_models)}")
+    context.log.info(f"Retrieved results: failed={len(failed_check_results)}, skipped={len(skipped_models_events)}, nb_warn={len(non_blocking_audit_warnings)}, notifier_failures={len(notifier_audit_failures)}")
 
     return (
         failed_check_results,
@@ -398,7 +363,6 @@ def check_model_status(
     model_has_audit_failures = False
 
     # Check if skipped due to upstream failures
-    context.log.debug("Checking for skipped models...")
     if _model_was_skipped_from_events(
         skipped_models_events, current_model_name, logger=context.log
     ):
@@ -408,7 +372,6 @@ def check_model_status(
         )
 
     # Check audit failures (model executed but audit failed)
-    context.log.debug("Checking for audit failures...")
     if _model_has_failed_audits_for_asset(
         failed_check_results,
         current_asset_spec.key,
@@ -451,7 +414,7 @@ def handle_audit_failures(
             logger=context.log,
         )
 
-        context.log.debug(f"Returning {len(check_results)} failed check results")
+
         return MaterializeResult(
             asset_key=current_asset_spec.key,
             metadata={"status": "materialization_success_audit_failed"},
@@ -483,7 +446,6 @@ def handle_successful_execution(
     Returns a MaterializeResult with passed checks (and WARN for non-blocking failures).
     """
     context.log.info(f"Model {current_model_name}: success")
-    context.log.debug("Returning MaterializeResult with passed checks")
 
     # Normalize optional inputs
     non_blocking_audit_warnings = non_blocking_audit_warnings or []
@@ -585,14 +547,14 @@ def handle_successful_execution(
                     )
                 )
 
-        context.log.debug(f"Returning {len(check_results)} check results")
+
         return MaterializeResult(
             asset_key=current_asset_spec.key,
             metadata={"status": "success"},
             check_results=check_results,
         )
     else:
-        context.log.debug("No checks defined; returning simple MaterializeResult")
+
         return MaterializeResult(
             asset_key=current_asset_spec.key, metadata={"status": "success"}
         )
