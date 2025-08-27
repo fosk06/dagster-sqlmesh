@@ -8,6 +8,8 @@
 
 Our module integrates SQLMesh with Dagster for data materialization. We need to understand how SQLMesh's `plan` and `run` commands work, and establish clear boundaries between our tool's responsibilities and SQLMesh's native workflow management.
 
+**Note**: While this ADR focuses on the plan/run flow and separation of concerns, the actual execution tracking and skip detection during the `run` phase is documented in [ADR-0016: SQLMesh Model Skip Detection and AssetCheck Integration](./0016-sqlmesh-model-skip-detection-assetcheck-integration.md).
+
 ## Decision
 
 **Use SQLMesh `plan` for validation and `run` for materialization in a combined operation, with clear separation from SQLMesh's environment management and breaking change handling.**
@@ -334,3 +336,4 @@ except Exception as e:
 - [ADR-0002: Shared SQLMesh Execution](./0002-shared-sqlmesh-execution.md)
 - [ADR-0003: Asset Check Integration](./0003-asset-check-integration.md)
 - [ADR-0007: Code Version and Data Version Mapping](./0007-code-version-data-version-mapping.md)
+- [ADR-0016: SQLMesh Model Skip Detection and AssetCheck Integration](./0016-sqlmesh-model-skip-detection-assetcheck-integration.md)
