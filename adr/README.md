@@ -13,20 +13,24 @@ Architecture Decision Records are documents that capture important architectural
 
 ## ADR Index
 
-| ADR                                                      | Title                                            | Status   | Date       |
-| -------------------------------------------------------- | ------------------------------------------------ | -------- | ---------- |
-| [ADR-0001](./0001-individual-assets-vs-multi-asset.md)   | Individual Assets vs Multi-Asset Pattern         | Accepted | 2025-08-05 |
-| [ADR-0002](./0002-shared-sqlmesh-execution.md)           | Shared SQLMesh Execution per Dagster Run         | Accepted | 2025-08-05 |
-| [ADR-0003](./0003-asset-check-integration.md)            | Asset Check Integration for SQLMesh Audits       | Accepted | 2025-08-05 |
-| [ADR-0004](./0004-retry-policy-management.md)            | Retry Policy Management for SQLMesh Integration  | Accepted | 2025-08-05 |
-| [ADR-0005](./0005-custom-sqlmesh-console.md)             | Custom SQLMesh Console for Event Capture         | Accepted | 2025-08-05 |
-| [ADR-0006](./0006-sqlmesh-dagster-tag-convention.md)     | SQLMesh to Dagster Tag Convention                | Accepted | 2025-08-05 |
-| [ADR-0007](./0007-code-version-data-version-mapping.md)  | Code Version and Data Version Mapping            | Accepted | 2025-08-05 |
-| [ADR-0008](./0008-sqlmesh-plan-run-flow.md)              | SQLMesh Plan/Run Flow and Separation of Concerns | Accepted | 2025-08-05 |
-| [ADR-0009](./0009-shared-state-management-pattern.md)    | Shared State Management Pattern                  | Accepted | 2025-01-27 |
-| [ADR-0010](./0010-function-extraction-and-modularity.md) | Function Extraction and Modularity               | Accepted | 2025-01-27 |
-| [ADR-0011](./0011-error-handling-strategy.md)            | Error Handling Strategy                          | Accepted | 2025-01-27 |
-| [ADR-0012](./0012-sqlmesh-dagster-component.md)          | SQLMesh Dagster Component                        | Accepted | 2025-01-27 |
+| ADR                                                                       | Title                                                   | Status   | Date       |
+| ------------------------------------------------------------------------- | ------------------------------------------------------- | -------- | ---------- |
+| [ADR-0001](./0001-individual-assets-vs-multi-asset.md)                    | Individual Assets vs Multi-Asset Pattern                | Accepted | 2025-08-05 |
+| [ADR-0002](./0002-shared-sqlmesh-execution.md)                            | Shared SQLMesh Execution per Dagster Run                | Accepted | 2025-08-05 |
+| [ADR-0003](./0003-asset-check-integration.md)                             | Asset Check Integration for SQLMesh Audits              | Accepted | 2025-08-05 |
+| [ADR-0004](./0004-retry-policy-management.md)                             | Retry Policy Management for SQLMesh Integration         | Accepted | 2025-08-05 |
+| [ADR-0005](./0005-custom-sqlmesh-console.md)                              | Custom SQLMesh Console for Event Capture                | Accepted | 2025-08-05 |
+| [ADR-0006](./0006-sqlmesh-dagster-tag-convention.md)                      | SQLMesh to Dagster Tag Convention                       | Accepted | 2025-08-05 |
+| [ADR-0007](./0007-code-version-data-version-mapping.md)                   | Code Version and Data Version Mapping                   | Accepted | 2025-08-05 |
+| [ADR-0008](./0008-sqlmesh-plan-run-flow.md)                               | SQLMesh Plan/Run Flow and Separation of Concerns        | Accepted | 2025-08-05 |
+| [ADR-0009](./0009-shared-state-management-pattern.md)                     | Shared State Management Pattern                         | Accepted | 2025-01-27 |
+| [ADR-0010](./0010-function-extraction-and-modularity.md)                  | Function Extraction and Modularity                      | Accepted | 2025-01-27 |
+| [ADR-0011](./0011-error-handling-strategy.md)                             | Error Handling Strategy                                 | Accepted | 2025-01-27 |
+| [ADR-0012](./0012-sqlmesh-dagster-component.md)                           | SQLMesh Dagster Component                               | Accepted | 2025-01-27 |
+| [ADR-0013](./0013-sqlmesh-notifier-integration.md)                        | SQLMesh Notifier Integration                            | Accepted | 2025-01-27 |
+| [ADR-0014](./0014-refactoring-plan-consolidation.md)                      | Refactoring Plan Consolidation                          | Accepted | 2025-01-27 |
+| [ADR-0015](./0015-custom-sqlmesh-console-execution-tracking.md)           | Custom SQLMesh Console for Model Execution Tracking     | Accepted | 2025-08-27 |
+| [ADR-0016](./0016-sqlmesh-model-skip-detection-assetcheck-integration.md) | SQLMesh Model Skip Detection and AssetCheck Integration | Accepted | 2025-08-27 |
 
 ## Key Architectural Patterns
 
@@ -73,6 +77,14 @@ Custom exception classes and error classification system that distinguishes betw
 ### 11. Declarative Component Configuration
 
 SQLMesh Dagster Component provides declarative YAML configuration for SQLMesh projects, following dagster-dbt patterns with Jinja2 templating for external asset mapping and smart default values for improved user experience.
+
+### 12. Custom Console Injection Pattern
+
+Custom SQLMesh console (`SimpleRunTracker`) injected into `sqlmesh.context.console` to capture real-time execution events without modifying SQLMesh's internal API. This enables precise tracking of which models are actually executed vs skipped.
+
+### 13. Execution Status AssetCheck Pattern
+
+Automatic `sqlmesh_execution_status` AssetCheck added to all SQLMesh models, providing clear feedback to users about whether a model was executed or skipped by SQLMesh. This integrates seamlessly with Dagster's existing AssetCheck system.
 
 ## Current Limitations
 
