@@ -118,7 +118,7 @@ class SQLMeshResource(ConfigurableResource):
         return logging.getLogger(__name__)
 
     @classmethod
-    def _get_or_create_notifier(cls):
+    def _get_or_create_notifier(_cls):
         """Deprecated internal accessor kept for backward compatibility; delegates to service."""
         return get_or_create_notifier()
 

@@ -190,6 +190,8 @@ def sqlmesh_assets_factory(
                 non_blocking_audit_warnings,
                 notifier_audit_failures,
                 affected_downstream_asset_keys,
+                sqlmesh_executed_models,
+                sqlmesh_skipped_models,
             ) = process_sqlmesh_results(context, sqlmesh_results, run_id)
             context.log.info(
                 f"Retrieved results: failed={len(failed_check_results)}, skipped={len(skipped_models_events)}, nb_warn={len(non_blocking_audit_warnings)}, notifier_failures={len(notifier_audit_failures)}"
@@ -215,6 +217,8 @@ def sqlmesh_assets_factory(
                 non_blocking_audit_warnings,
                 notifier_audit_failures,
                 affected_downstream_asset_keys,
+                sqlmesh_executed_models,  # Pass SQLMesh executed models
+                sqlmesh_skipped_models,  # Pass SQLMesh skipped models
             )
             return result
 

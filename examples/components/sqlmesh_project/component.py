@@ -17,7 +17,7 @@ from dagster.components.scaffold.scaffold import scaffold_with
 from dagster.components.utils.translation import TranslationFn, TranslationFnResolver
 
 from dg_sqlmesh import sqlmesh_definitions_factory, SQLMeshResource, SQLMeshTranslator
-
+from dg_sqlmesh.components.sqlmesh_project.scaffolder import SQLMeshProjectComponentScaffolder
 
 @dataclass(frozen=True)
 class SQLMeshComponentSettings:

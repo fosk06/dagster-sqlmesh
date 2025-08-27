@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from typing import Annotated, Any, Callable, Optional
-
+import re
 from dagster import Resolvable, AssetKey
 from dagster._core.definitions.definitions_class import Definitions
 from dagster._utils.cached_method import cached_method
@@ -294,13 +294,8 @@ class ProxySQLMeshTranslator(SQLMeshTranslator):
         base_tags = super().get_tags(context, model)
         return self._fn(base_tags, model)
 
-        # Removed duplicate ProxySQLMeshTranslator class definition
-        super().__init__()
-
     def get_external_asset_key(self, external_fqn: str) -> AssetKey:
         # Parse the FQN to extract database, schema, name
-        import re
-
         parts = re.findall(r'"([^"]+)"', external_fqn)
         if len(parts) == 3:
             database, schema, name = parts

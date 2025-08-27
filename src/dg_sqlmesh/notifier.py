@@ -47,7 +47,7 @@ class CapturingNotifier(BaseNotificationTarget):
 
     # Optional base hook used by default helpers in BaseNotificationTarget
     def send(
-        self, notification_status: NotificationStatus, msg: str, **kwargs: t.Any
+        self, _notification_status: NotificationStatus, _msg: str, **_kwargs: t.Any
     ) -> None:  # noqa: D401 - keep signature
         # No outbound side-effect needed; we only capture
         return None

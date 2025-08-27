@@ -45,6 +45,20 @@ def create_asset_checks_from_model(
             )
         )
 
+    # Add automatic execution status check for ALL models
+    asset_checks.append(
+        AssetCheckSpec(
+            name="sqlmesh_execution_status",
+            asset=asset_key,
+            description=f"SQLMesh execution status for model {model.name}",
+            blocking=False,  # This is informational only
+            metadata={
+                "sqlmesh_model": model.name,
+                "check_type": "execution_status",
+            },
+        )
+    )
+
     return asset_checks
 
 

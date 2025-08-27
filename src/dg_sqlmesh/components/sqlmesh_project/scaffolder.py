@@ -22,7 +22,7 @@ class SQLMeshScaffoldParams(BaseModel):
 
 class SQLMeshProjectComponentScaffolder(Scaffolder[SQLMeshScaffoldParams]):
     @classmethod
-    def get_scaffold_params(cls) -> type[SQLMeshScaffoldParams]:
+    def get_scaffold_params(_cls) -> type[SQLMeshScaffoldParams]:
         return SQLMeshScaffoldParams
 
     def scaffold(self, request: ScaffoldRequest[SQLMeshScaffoldParams]) -> None:
