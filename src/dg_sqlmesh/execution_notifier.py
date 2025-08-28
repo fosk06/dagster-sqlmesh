@@ -15,23 +15,4 @@ def _get_notifier_failures() -> List[
         return []
 
 
-def _summarize_notifier_failures(  # TODO check if still in use and find if another method replace it somewhere
-    context: AssetExecutionContext, notifier_audit_failures: List[Dict]
-) -> None:
-    """Log a compact summary of notifier failures if present."""
-    if not notifier_audit_failures:
-        return
-    try:
-        summary = [
-            {
-                "model": f.get("model"),
-                "audit": f.get("audit"),
-                "blocking": f.get("blocking"),
-                "count": f.get("count"),
-            }
-            for f in notifier_audit_failures
-        ]
-        context.log.info(f"Notifier audit failures summary: {summary}")
-    except Exception:
-        # ignore logging issues to avoid breaking execution
-        pass
+

@@ -93,25 +93,7 @@ def _build_check_result_failed_from_notifier(
     )
 
 
-def _build_pass_check_result(  # TODO check if still in use
-    *,
-    check_name: str,
-    current_model_name: str,
-    context: AssetExecutionContext,
-) -> AssetCheckResult:
-    pass_meta = build_audit_check_metadata(
-        context=context.resources.sqlmesh.context
-        if hasattr(context.resources, "sqlmesh")
-        else None,  # type: ignore[attr-defined]
-        model_or_name=current_model_name,
-        audit_name=check_name,
-        logger=getattr(context, "log", None),
-    )
-    return AssetCheckResult(
-        check_name=check_name,
-        passed=True,
-        metadata=pass_meta,
-    )
+
 
 
 def _build_check_results_for_create_result(

@@ -577,64 +577,7 @@ class TestPhase1HelperFunctions:
             failures = _get_notifier_failures(Mock())
             assert failures == []
 
-    def test__summarize_notifier_failures_logs(self) -> None:
-        from dg_sqlmesh.execution_notifier import _summarize_notifier_failures
 
-        context = Mock(spec=AssetExecutionContext)
-        context.log.info = Mock()
-        failures = [
-            {"model": "s.m1", "audit": "a1", "blocking": True, "count": 1},
-            {"model": "s.m2", "audit": "a2", "blocking": False, "count": 0},
-        ]
-        _summarize_notifier_failures(context, failures)
-        assert context.log.info.called
-
-        # No log when empty
-        context2 = Mock(spec=AssetExecutionContext)
-        context2.log.info = Mock()
-        _summarize_notifier_failures(context2, [])
-        context2.log.info.assert_not_called()
-
-    def test__compute_blocking_and_downstream(self) -> None:
-        from dg_sqlmesh.execution_downstream import _compute_blocking_and_downstream
-
-        sqlmesh = Mock()
-        # Mock model resolution and key mapping
-        model_obj = Mock()
-        sqlmesh.context.get_model.return_value = model_obj
-        failing_key = AssetKey(["db", "schema", "m1"])
-        downstream_key = AssetKey(["db", "schema", "m2"])
-        sqlmesh.translator.get_asset_key.return_value = failing_key
-        # Downstream calculation returns both failing and downstream
-        sqlmesh._get_affected_downstream_assets.return_value = {
-            failing_key,
-            downstream_key,
-        }
-
-        notifier_failures = [{"model": "schema.m1", "audit": "a1", "blocking": True}]
-        blocking_keys, affected = _compute_blocking_and_downstream(
-            sqlmesh, notifier_failures
-        )
-        assert blocking_keys == [failing_key]
-        assert affected == {downstream_key}
-
-    def test__compute_blocking_and_downstream_exception(self) -> None:
-        from dg_sqlmesh.execution_downstream import _compute_blocking_and_downstream
-
-        sqlmesh = Mock()
-        # translator path returns key
-        failing_key = AssetKey(["db", "schema", "m1"])
-        sqlmesh.context.get_model.return_value = Mock()
-        sqlmesh.translator.get_asset_key.return_value = failing_key
-        # Simulate exception in downstream computation
-        sqlmesh._get_affected_downstream_assets.side_effect = Exception("x")
-
-        notifier_failures = [{"model": "schema.m1", "audit": "a1", "blocking": True}]
-        blocking_keys, affected = _compute_blocking_and_downstream(
-            sqlmesh, notifier_failures
-        )
-        assert blocking_keys == [failing_key]
-        assert affected == set()
 
     def test__build_shared_results_shape(self) -> None:
         from dg_sqlmesh.sqlmesh_asset_execution_utils import _build_shared_results

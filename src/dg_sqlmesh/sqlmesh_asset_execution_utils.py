@@ -84,7 +84,7 @@ def _get_notifier_failures(
     _: SQLMeshResource | None = None,
 ) -> List[
     Dict
-]:  # TODO check if still in use and find if another method replace it somewhere
+]:
     """Compatibility shim delegating to the no-arg notifier helper.
 
     Tests may call this with an argument; ignore it.
