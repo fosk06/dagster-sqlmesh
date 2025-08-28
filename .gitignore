@@ -182,3 +182,7 @@ jaffle_test.db.wal
 # Large test data files (should be generated dynamically)
 tests/fixtures/raw_source_*.csv
 tests/jaffle-data/raw_source_*.csv
+
+# Dagster
+dagster_home/
+dagster.yaml

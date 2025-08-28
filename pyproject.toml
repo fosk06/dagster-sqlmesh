@@ -57,6 +57,9 @@ dev = [
     "safety>=3.6.0",
     "pip-licenses>=5.0.0",
     "dg-sqlmesh",
+    "mkdocs-material>=9.6.18",
+    "mkdocs-git-revision-date-localized-plugin>=1.4.7",
+    "mkdocs-minify-plugin>=0.8.0",
 ]
 
 [tool.uv.sources]

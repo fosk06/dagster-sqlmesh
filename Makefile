@@ -21,10 +21,25 @@ help:
 	@echo "  bump-minor    - Bump minor version (0.1.0 -> 0.2.0)"
 	@echo "  bump-major    - Bump major version (0.1.0 -> 1.0.0)"
 	@echo ""
+	@echo "Documentation:"
+	@echo "  docs-serve    - Start MkDocs development server"
+	@echo "  docs-build    - Build documentation site"
+	@echo "  docs-clean    - Clean documentation build artifacts"
+	@echo "  docs-deploy   - Build and prepare documentation for deployment"
+	@echo "  docs-quality  - Check documentation quality and links"
+	@echo "  docs          - Full documentation workflow (clean + build + check)"
+	@echo ""
+	@echo "Development Workflows:"
+	@echo "  dev-quick     - Quick development check (lint + test + docs)"
+	@echo "  dev-full      - Full development workflow (install + test + lint + vulture + docs)"
+	@echo "  validate      - Full validation (clean + build + test + ruff + vulture)"
+	@echo ""
 	@echo "Examples:"
 	@echo "  make build"
 	@echo "  make publish"
 	@echo "  make bump-patch"
+	@echo "  make docs-serve"
+	@echo "  make dev-quick"
 
 # Build the package
 build:
@@ -228,4 +243,58 @@ ci-test:
 
 # Pre-commit checks
 pre-commit: lint test vulture security
-	@echo "✅ Pre-commit checks completed!" 
+	@echo "✅ Pre-commit checks completed!"
+
+# Documentation commands
+docs-serve:
+	@echo "📚 Starting MkDocs development server..."
+	@echo "🌐 Open http://localhost:8000 in your browser"
+	@echo "📝 Edit files in docs/ to see live changes"
+	@uv run mkdocs serve --dev-addr=localhost:8000
+
+docs-build:
+	@echo "🔨 Building documentation site..."
+	@uv run mkdocs build
+	@echo "✅ Documentation built in site/ directory"
+
+docs-clean:
+	@echo "🧹 Cleaning documentation build artifacts..."
+	@rm -rf site/
+	@echo "✅ Documentation build artifacts cleaned"
+
+docs-deploy: docs-clean docs-build
+	@echo "🚀 Documentation ready for deployment!"
+	@echo "📁 Build artifacts in site/ directory"
+	@echo "📋 Ready to deploy to GitHub Pages"
+
+# Documentation validation
+docs-check: docs-build
+	@echo "🔍 Validating documentation build..."
+	@if [ -d "site" ]; then \
+		echo "✅ Documentation builds successfully"; \
+		echo "📊 Site structure:"; \
+		find site -name "*.html" | head -10; \
+	else \
+		echo "❌ Documentation build failed"; \
+		exit 1; \
+	fi
+
+# Full documentation workflow
+docs: docs-clean docs-build docs-check
+	@echo "🎉 Documentation workflow completed successfully!"
+
+# Documentation quality check
+docs-quality: docs-build
+	@echo "🔍 Checking documentation quality..."
+	@echo "📊 Checking for broken links..."
+	@uv run mkdocs build --strict
+	@echo "✅ Documentation quality check passed"
+
+# Development workflow with documentation
+dev-full: install-dev test lint vulture docs
+	@echo "🎯 Full development workflow completed!"
+	@echo "📚 Documentation is ready at site/"
+
+# Quick development check
+dev-quick: lint test docs-build
+	@echo "⚡ Quick development check completed!" 

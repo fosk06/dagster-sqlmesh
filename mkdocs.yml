@@ -1,0 +1,91 @@
+site_name: dg-sqlmesh Documentation
+site_description: Seamless integration between Dagster and SQLMesh
+site_author: Thomas Trividic
+site_url: https://fosk06.github.io/dagster-sqlmesh/
+
+# Repository
+repo_name: fosk06/dagster-sqlmesh
+repo_url: https://github.com/fosk06/dagster-sqlmesh
+edit_uri: edit/main/docs/
+
+# Copyright
+copyright: Copyright &copy; 2024-2025 Thomas Trividic
+
+# Theme
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - search.suggest
+    - content.code.copy
+    - content.tabs.link
+    - header.autohide
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+
+# Navigation
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+  - User Guide:
+      - Core Concepts: user-guide/core-concepts.md
+  - Examples:
+      - Basic Usage: examples/basic-usage.md
+  - Development:
+      - Contributing: development/contributing.md
+
+# Plugins
+plugins:
+  - search
+
+# Extensions
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: class
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+# Validation
+validation:
+  nav:
+    omitted_files: ignore
+  not_found: ignore
