@@ -82,9 +82,7 @@ def _init_execution_event_buffers(
 
 def _get_notifier_failures(
     _: SQLMeshResource | None = None,
-) -> List[
-    Dict
-]:
+) -> List[Dict]:
     """Compatibility shim delegating to the no-arg notifier helper.
 
     Tests may call this with an argument; ignore it.

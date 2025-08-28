@@ -5,12 +5,10 @@ Cette fonctionnalité ajoute automatiquement un AssetCheck "sqlmesh_execution_st
 pour tous les modèles SQLMesh, indiquant s'ils ont été exécutés ou skippés.
 """
 
-import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from dagster import (
     AssetExecutionContext,
     AssetKey,
-    AssetCheckResult,
     AssetCheckSeverity,
 )
 from dg_sqlmesh.sqlmesh_asset_check_utils import create_asset_checks_from_model

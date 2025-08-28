@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Dict, List
-from dagster import AssetExecutionContext
 from .notifier_service import get_audit_failures
 
 
@@ -13,6 +12,3 @@ def _get_notifier_failures() -> List[
         return get_audit_failures()
     except Exception:
         return []
-
-
-

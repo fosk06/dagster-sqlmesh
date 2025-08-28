@@ -4,7 +4,6 @@ from typing import Any, List
 from dagster import AssetExecutionContext, AssetKey
 
 from .resource import SQLMeshResource
-from .sqlmesh_asset_utils import get_models_to_materialize
 
 
 def _log_run_selection(
@@ -16,9 +15,6 @@ def _log_run_selection(
     )
     context.log.debug(f"No existing results for run {run_id}")
     context.log.info(f"Selected assets in this run: {selected_asset_keys}")
-
-
-
 
 
 def _materialize_and_get_plan(

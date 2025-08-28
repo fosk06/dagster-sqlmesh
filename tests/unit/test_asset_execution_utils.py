@@ -577,8 +577,6 @@ class TestPhase1HelperFunctions:
             failures = _get_notifier_failures(Mock())
             assert failures == []
 
-
-
     def test__build_shared_results_shape(self) -> None:
         from dg_sqlmesh.sqlmesh_asset_execution_utils import _build_shared_results
 

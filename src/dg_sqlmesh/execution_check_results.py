@@ -93,9 +93,6 @@ def _build_check_result_failed_from_notifier(
     )
 
 
-
-
-
 def _build_check_results_for_create_result(
     *,
     current_model_checks: List[Any],
