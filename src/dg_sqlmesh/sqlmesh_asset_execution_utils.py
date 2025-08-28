@@ -214,14 +214,8 @@ def execute_sqlmesh_materialization(
         )
         context.log.debug("SQLMesh materialization completed")
 
-        # Get tracking results
-        tracking_results = tracker.get_results()
-        context.log.info(
-            f"SQLMesh execution tracking: {tracking_results['total_run']} executed, {tracking_results['total_skipped']} skipped"
-        )
-
-        # Store which models were actually executed vs skipped for later use
-        sqlmesh_executed_models = tracking_results["run_models"]
+        # Get executed models from tracker
+        sqlmesh_executed_models = tracker.get_executed_models()
 
         # DEDUCTION LOGIC: Models skipped = Models requested - Models executed
         # This handles cron-based skips that our tracker doesn't capture directly
