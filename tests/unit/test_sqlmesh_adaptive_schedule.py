@@ -43,14 +43,18 @@ class TestSQLMeshAdaptiveSchedule:
     ):
         """Test that _assert_instance_has_queued_run_coordinator passes with QueuedRunCoordinator."""
         # Should not raise any exception
-        _assert_instance_has_queued_run_coordinator(mock_instance_with_queued_coordinator)
+        _assert_instance_has_queued_run_coordinator(
+            mock_instance_with_queued_coordinator
+        )
 
     def test_assert_instance_has_queued_run_coordinator_failure(
         self, mock_instance_without_queued_coordinator
     ):
         """Test that _assert_instance_has_queued_run_coordinator raises error without QueuedRunCoordinator."""
         with pytest.raises(RuntimeError) as exc_info:
-            _assert_instance_has_queued_run_coordinator(mock_instance_without_queued_coordinator)
+            _assert_instance_has_queued_run_coordinator(
+                mock_instance_without_queued_coordinator
+            )
 
         assert "QueuedRunCoordinator" in str(exc_info.value)
 
@@ -58,7 +62,7 @@ class TestSQLMeshAdaptiveSchedule:
         """Test that schedule generates correct run key format."""
         # Test with specific execution time
         execution_time = datetime.datetime(2024, 1, 15, 9, 0, 0)
-        
+
         result = RunRequest(
             run_key=f"sqlmesh_adaptive_{execution_time.isoformat()}",
             tags={"schedule": "sqlmesh_adaptive"},
@@ -73,7 +77,9 @@ class TestSQLMeshAdaptiveSchedule:
         with patch("datetime.datetime") as mock_datetime:
             mock_now = datetime.datetime(2024, 1, 15, 9, 0, 0)
             mock_datetime.now.return_value = mock_now
-            mock_datetime.side_effect = lambda *args, **kw: datetime.datetime(*args, **kw)
+            mock_datetime.side_effect = lambda *args, **kw: datetime.datetime(
+                *args, **kw
+            )
 
             scheduled_ts = datetime.datetime.now()
             result = RunRequest(
@@ -180,9 +186,14 @@ class TestSQLMeshAdaptiveSchedule:
         # Verify all statuses exist and are valid
         for status in statuses:
             assert status is not None
-            assert hasattr(status, 'name')
-            assert status.name in ['QUEUED', 'NOT_STARTED', 'STARTING', 'STARTED', 'CANCELING']
+            assert hasattr(status, "name")
+            assert status.name in [
+                "QUEUED",
+                "NOT_STARTED",
+                "STARTING",
+                "STARTED",
+                "CANCELING",
+            ]
 
         # Verify SUBMITTED is not used (this was the bug)
-        assert not hasattr(DagsterRunStatus, 'SUBMITTED')
-
+        assert not hasattr(DagsterRunStatus, "SUBMITTED")
