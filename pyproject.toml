@@ -1,7 +1,7 @@
 [project]
 name = "dg-sqlmesh"
 requires-python = ">=3.11,<3.13"
-version = "1.9.2"
+version = "1.9.3"
 description = "Seamless integration between Dagster and SQLMesh for modern data engineering workflows"
 readme = "README.md"
 license = "Apache-2.0"
