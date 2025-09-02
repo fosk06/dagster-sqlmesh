@@ -288,7 +288,6 @@ def sqlmesh_adaptive_schedule_factory(
                 job_name=sqlmesh_job.name,
                 statuses=[
                     DagsterRunStatus.QUEUED,
-                    DagsterRunStatus.SUBMITTED,
                     DagsterRunStatus.NOT_STARTED,
                     DagsterRunStatus.STARTING,
                     DagsterRunStatus.STARTED,
