@@ -171,51 +171,6 @@ class SQLMeshResource(ConfigurableResource):
         """
         return analyze_sqlmesh_crons_using_api(self.context)
 
-    def has_models_to_execute(self, model_names: list[str] | None = None) -> bool:
-        """
-        Check if there are any models that need execution by creating a plan.
-        
-        Args:
-            model_names: Optional list of specific model names to check.
-                        If None, checks all models.
-        
-        Returns:
-            bool: True if there are models to execute, False if no changes needed.
-        """
-        try:
-            # Create a plan to check if there are changes
-            if model_names:
-                plan = self.context.plan(
-                    environment=self.environment,
-                    include_models=model_names,
-                    auto_apply=False,
-                    no_prompts=True,
-                )
-            else:
-                plan = self.context.plan(
-                    environment=self.environment,
-                    auto_apply=False,
-                    no_prompts=True,
-                )
-            
-            # Check if plan requires backfill (more direct than catching NoChangesPlanError)
-            requires_execution = plan.requires_backfill
-            
-            if not requires_execution:
-                if self._logger:
-                    self._logger.info("⏭️ Skipping Dagster run: no models require backfill")
-            else:
-                if self._logger:
-                    self._logger.info(f"🚀 Proceeding with Dagster run: {len(plan.missing_intervals)} models need processing")
-            
-            return requires_execution
-            
-        except Exception as e:
-            # For any error, assume we need to execute (conservative approach)
-            if self._logger:
-                self._logger.warning(f"Error checking for model changes: {e}. Assuming execution needed.")
-            return True
-
     def _serialize_audit_args(self, audit_args):
         """Deprecated: use sqlmesh_asset_check_utils.serialize_audit_args"""
         return serialize_audit_args(audit_args)
