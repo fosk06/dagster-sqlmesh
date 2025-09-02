@@ -178,3 +178,27 @@ class TestSQLMeshResourceOptimization:
             auto_apply=False,
             no_prompts=True,
         )
+
+    def test_has_models_to_execute_with_none_logger(self, mock_sqlmesh_resource):
+        """Test has_models_to_execute works when logger is None (scheduler context)."""
+        # Mock context.plan to return a plan that requires backfill
+        mock_plan = Mock()
+        mock_plan.requires_backfill = True
+        mock_plan.missing_intervals = ["interval1"]
+        
+        mock_context = Mock()
+        mock_context.plan.return_value = mock_plan
+        mock_sqlmesh_resource.context = mock_context
+        mock_sqlmesh_resource.environment = "dev"
+        mock_sqlmesh_resource._logger = None  # Simulate scheduler context where logger is None
+
+        # Call the method - should not crash
+        result = SQLMeshResource.has_models_to_execute(mock_sqlmesh_resource)
+
+        # Verify result
+        assert result is True
+        mock_context.plan.assert_called_once_with(
+            environment="dev",
+            auto_apply=False,
+            no_prompts=True,
+        )

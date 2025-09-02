@@ -202,15 +202,18 @@ class SQLMeshResource(ConfigurableResource):
             requires_execution = plan.requires_backfill
             
             if not requires_execution:
-                self._logger.info("⏭️ Skipping Dagster run: no models require backfill")
+                if self._logger:
+                    self._logger.info("⏭️ Skipping Dagster run: no models require backfill")
             else:
-                self._logger.info(f"🚀 Proceeding with Dagster run: {len(plan.missing_intervals)} models need processing")
+                if self._logger:
+                    self._logger.info(f"🚀 Proceeding with Dagster run: {len(plan.missing_intervals)} models need processing")
             
             return requires_execution
             
         except Exception as e:
             # For any error, assume we need to execute (conservative approach)
-            self._logger.warning(f"Error checking for model changes: {e}. Assuming execution needed.")
+            if self._logger:
+                self._logger.warning(f"Error checking for model changes: {e}. Assuming execution needed.")
             return True
 
     def _serialize_audit_args(self, audit_args):
