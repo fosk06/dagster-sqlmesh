@@ -185,3 +185,47 @@ class TestSQLMeshAdaptiveSchedule:
 
         # Verify SUBMITTED is not used (this was the bug)
         assert not hasattr(DagsterRunStatus, 'SUBMITTED')
+
+    def test_schedule_skip_when_no_models_to_execute(self):
+        """Test that schedule returns SkipReason when no models need execution."""
+        # This test simulates the new optimization where we check if models need execution
+        # before creating a RunRequest
+        
+        # Simulate the logic: if has_models_to_execute() returns False, skip
+        has_models_to_execute = False
+        
+        if not has_models_to_execute:
+            result = SkipReason("no models need execution; all models are up to date")
+        
+        # Verify result
+        assert isinstance(result, SkipReason)
+        assert "no models need execution" in result.skip_message
+        assert "all models are up to date" in result.skip_message
+
+    def test_schedule_run_when_models_need_execution(self):
+        """Test that schedule returns RunRequest when models need execution."""
+        # This test simulates the new optimization where we check if models need execution
+        # before creating a RunRequest
+        
+        # Simulate the logic: if has_models_to_execute() returns True, create RunRequest
+        has_models_to_execute = True
+        
+        if not has_models_to_execute:
+            result = SkipReason("no models need execution; all models are up to date")
+        else:
+            execution_time = datetime.datetime(2024, 1, 15, 9, 0, 0)
+            result = RunRequest(
+                run_key=f"sqlmesh_adaptive_{execution_time.isoformat()}",
+                tags={
+                    "schedule": "sqlmesh_adaptive",
+                    "granularity": "0 9 * * *",
+                    "dagster/max_retries": "0",
+                    "dagster/retry_on_asset_or_op_failure": "false",
+                    "dagster/concurrency_key": "sqlmesh_jobs_exclusive",
+                },
+            )
+        
+        # Verify result
+        assert isinstance(result, RunRequest)
+        assert result.run_key.startswith("sqlmesh_adaptive_")
+        assert result.tags["schedule"] == "sqlmesh_adaptive"

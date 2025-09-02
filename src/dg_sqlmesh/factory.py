@@ -300,6 +300,12 @@ def sqlmesh_adaptive_schedule_factory(
                 "sqlmesh job already active; skipping new run to enforce singleton execution"
             )
 
+        # Check if there are any models that need execution
+        if not sqlmesh_resource.has_models_to_execute():
+            return SkipReason(
+                "no models need execution; all models are up to date"
+            )
+
         scheduled_ts = context.scheduled_execution_time or datetime.datetime.now()
         return RunRequest(
             run_key=f"sqlmesh_adaptive_{scheduled_ts.isoformat()}",

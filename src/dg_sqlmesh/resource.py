@@ -37,9 +37,9 @@ from sqlmesh.utils.errors import (
     SQLMeshError,
     PlanError,
     ConflictingPlanError,
+    NoChangesPlanError,
     NodeAuditsErrors,
     CircuitBreakerError,
-    NoChangesPlanError,
     UncategorizedPlanError,
     AuditError,
     PythonModelEvalError,
@@ -171,6 +171,36 @@ class SQLMeshResource(ConfigurableResource):
             str: Recommended Dagster cron expression
         """
         return analyze_sqlmesh_crons_using_api(self.context)
+
+    def has_models_to_execute(self, model_names: list[str] | None = None) -> bool:
+        """
+        Check if there are any models that need execution by creating a plan.
+        
+        Args:
+            model_names: Optional list of specific model names to check.
+                        If None, checks all models.
+        
+        Returns:
+            bool: True if there are models to execute, False if no changes needed.
+        """
+        try:
+            # Create a plan to check if there are changes
+            plan = self.context.plan(
+                select_models=model_names,
+                auto_apply=False,
+                no_prompts=True,
+            )
+            
+            # If we get here without exception, there are changes to execute
+            return True
+            
+        except NoChangesPlanError:
+            # No changes needed - all models are up to date
+            return False
+        except Exception as e:
+            # For any other error, assume we need to execute (conservative approach)
+            self._logger.warning(f"Error checking for model changes: {e}. Assuming execution needed.")
+            return True
 
     def _serialize_audit_args(self, audit_args):
         """Deprecated: use sqlmesh_asset_check_utils.serialize_audit_args"""
