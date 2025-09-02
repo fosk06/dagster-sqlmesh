@@ -37,7 +37,6 @@ from sqlmesh.utils.errors import (
     SQLMeshError,
     PlanError,
     ConflictingPlanError,
-    NoChangesPlanError,
     NodeAuditsErrors,
     CircuitBreakerError,
     UncategorizedPlanError,
@@ -185,20 +184,32 @@ class SQLMeshResource(ConfigurableResource):
         """
         try:
             # Create a plan to check if there are changes
-            plan = self.context.plan(
-                select_models=model_names,
-                auto_apply=False,
-                no_prompts=True,
-            )
+            if model_names:
+                plan = self.context.plan(
+                    environment=self.environment,
+                    include_models=model_names,
+                    auto_apply=False,
+                    no_prompts=True,
+                )
+            else:
+                plan = self.context.plan(
+                    environment=self.environment,
+                    auto_apply=False,
+                    no_prompts=True,
+                )
             
-            # If we get here without exception, there are changes to execute
-            return True
+            # Check if plan requires backfill (more direct than catching NoChangesPlanError)
+            requires_execution = plan.requires_backfill
             
-        except NoChangesPlanError:
-            # No changes needed - all models are up to date
-            return False
+            if not requires_execution:
+                self._logger.info("⏭️ Skipping Dagster run: no models require backfill")
+            else:
+                self._logger.info(f"🚀 Proceeding with Dagster run: {len(plan.missing_intervals)} models need processing")
+            
+            return requires_execution
+            
         except Exception as e:
-            # For any other error, assume we need to execute (conservative approach)
+            # For any error, assume we need to execute (conservative approach)
             self._logger.warning(f"Error checking for model changes: {e}. Assuming execution needed.")
             return True
 
@@ -249,7 +260,6 @@ class SQLMeshResource(ConfigurableResource):
         except (
             PlanError,
             ConflictingPlanError,
-            NoChangesPlanError,
             UncategorizedPlanError,
         ) as e:
             self._log_and_raise(f"Planning error: {e}")

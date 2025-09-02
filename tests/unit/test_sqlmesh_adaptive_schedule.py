@@ -195,11 +195,11 @@ class TestSQLMeshAdaptiveSchedule:
         has_models_to_execute = False
         
         if not has_models_to_execute:
-            result = SkipReason("no models need execution; all models are up to date")
+            result = SkipReason("no models require backfill; all models are up to date")
         
         # Verify result
         assert isinstance(result, SkipReason)
-        assert "no models need execution" in result.skip_message
+        assert "no models require backfill" in result.skip_message
         assert "all models are up to date" in result.skip_message
 
     def test_schedule_run_when_models_need_execution(self):

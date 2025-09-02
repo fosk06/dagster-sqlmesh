@@ -6,7 +6,6 @@ import pytest
 from unittest.mock import Mock, patch
 
 from dg_sqlmesh.resource import SQLMeshResource
-from sqlmesh.utils.errors import NoChangesPlanError
 
 
 class TestSQLMeshResourceOptimization:
@@ -21,10 +20,16 @@ class TestSQLMeshResourceOptimization:
 
     def test_has_models_to_execute_with_changes(self, mock_sqlmesh_resource):
         """Test has_models_to_execute returns True when there are changes."""
-        # Mock context.plan to return successfully (no exception = changes exist)
+        # Mock context.plan to return a plan that requires backfill
+        mock_plan = Mock()
+        mock_plan.requires_backfill = True
+        mock_plan.missing_intervals = ["interval1", "interval2"]
+        
         mock_context = Mock()
-        mock_context.plan.return_value = Mock()  # Successful plan creation
+        mock_context.plan.return_value = mock_plan
         mock_sqlmesh_resource.context = mock_context
+        mock_sqlmesh_resource.environment = "dev"
+        mock_sqlmesh_resource._logger = Mock()
 
         # Call the method
         result = SQLMeshResource.has_models_to_execute(mock_sqlmesh_resource)
@@ -32,17 +37,24 @@ class TestSQLMeshResourceOptimization:
         # Verify result
         assert result is True
         mock_context.plan.assert_called_once_with(
-            select_models=None,
+            environment="dev",
             auto_apply=False,
             no_prompts=True,
         )
+        mock_sqlmesh_resource._logger.info.assert_called_with("🚀 Proceeding with Dagster run: 2 models need processing")
 
     def test_has_models_to_execute_with_specific_models(self, mock_sqlmesh_resource):
         """Test has_models_to_execute with specific model names."""
-        # Mock context.plan to return successfully
+        # Mock context.plan to return a plan that requires backfill
+        mock_plan = Mock()
+        mock_plan.requires_backfill = True
+        mock_plan.missing_intervals = ["interval1"]
+        
         mock_context = Mock()
-        mock_context.plan.return_value = Mock()
+        mock_context.plan.return_value = mock_plan
         mock_sqlmesh_resource.context = mock_context
+        mock_sqlmesh_resource.environment = "dev"
+        mock_sqlmesh_resource._logger = Mock()
 
         # Call with specific models
         model_names = ["model1", "model2"]
@@ -51,17 +63,24 @@ class TestSQLMeshResourceOptimization:
         # Verify result
         assert result is True
         mock_context.plan.assert_called_once_with(
-            select_models=model_names,
+            environment="dev",
+            include_models=model_names,
             auto_apply=False,
             no_prompts=True,
         )
 
     def test_has_models_to_execute_no_changes(self, mock_sqlmesh_resource):
         """Test has_models_to_execute returns False when no changes needed."""
-        # Mock context.plan to raise NoChangesPlanError
+        # Mock context.plan to return a plan that doesn't require backfill
+        mock_plan = Mock()
+        mock_plan.requires_backfill = False
+        mock_plan.missing_intervals = []
+        
         mock_context = Mock()
-        mock_context.plan.side_effect = NoChangesPlanError("No changes needed")
+        mock_context.plan.return_value = mock_plan
         mock_sqlmesh_resource.context = mock_context
+        mock_sqlmesh_resource.environment = "dev"
+        mock_sqlmesh_resource._logger = Mock()
 
         # Call the method
         result = SQLMeshResource.has_models_to_execute(mock_sqlmesh_resource)
@@ -69,10 +88,11 @@ class TestSQLMeshResourceOptimization:
         # Verify result
         assert result is False
         mock_context.plan.assert_called_once_with(
-            select_models=None,
+            environment="dev",
             auto_apply=False,
             no_prompts=True,
         )
+        mock_sqlmesh_resource._logger.info.assert_called_with("⏭️ Skipping Dagster run: no models require backfill")
 
     def test_has_models_to_execute_other_error(self, mock_sqlmesh_resource):
         """Test has_models_to_execute returns True for other errors (conservative approach)."""
@@ -80,6 +100,8 @@ class TestSQLMeshResourceOptimization:
         mock_context = Mock()
         mock_context.plan.side_effect = Exception("Some other error")
         mock_sqlmesh_resource.context = mock_context
+        mock_sqlmesh_resource.environment = "dev"
+        mock_sqlmesh_resource._logger = Mock()
 
         # Call the method
         result = SQLMeshResource.has_models_to_execute(mock_sqlmesh_resource)
@@ -87,7 +109,7 @@ class TestSQLMeshResourceOptimization:
         # Verify result (should be True for conservative approach)
         assert result is True
         mock_context.plan.assert_called_once_with(
-            select_models=None,
+            environment="dev",
             auto_apply=False,
             no_prompts=True,
         )
@@ -106,6 +128,8 @@ class TestSQLMeshResourceOptimization:
         mock_context = Mock()
         mock_context.plan.side_effect = PlanError("Plan error")
         mock_sqlmesh_resource.context = mock_context
+        mock_sqlmesh_resource.environment = "dev"
+        mock_sqlmesh_resource._logger = Mock()
 
         # Call the method
         result = SQLMeshResource.has_models_to_execute(mock_sqlmesh_resource)
@@ -113,7 +137,7 @@ class TestSQLMeshResourceOptimization:
         # Verify result (should be True for conservative approach)
         assert result is True
         mock_context.plan.assert_called_once_with(
-            select_models=None,
+            environment="dev",
             auto_apply=False,
             no_prompts=True,
         )
@@ -125,16 +149,22 @@ class TestSQLMeshResourceOptimization:
         """Test has_models_to_execute with multiple scenarios."""
         mock_context = Mock()
         mock_sqlmesh_resource.context = mock_context
+        mock_sqlmesh_resource.environment = "dev"
         mock_sqlmesh_resource._logger = Mock()
 
         # Test case 1: No changes
-        mock_context.plan.side_effect = NoChangesPlanError("No changes needed")
+        mock_plan_no_changes = Mock()
+        mock_plan_no_changes.requires_backfill = False
+        mock_plan_no_changes.missing_intervals = []
+        mock_context.plan.return_value = mock_plan_no_changes
         result = SQLMeshResource.has_models_to_execute(mock_sqlmesh_resource)
         assert result is False
 
         # Test case 2: Changes exist
-        mock_context.plan.side_effect = None
-        mock_context.plan.return_value = Mock()
+        mock_plan_changes = Mock()
+        mock_plan_changes.requires_backfill = True
+        mock_plan_changes.missing_intervals = ["interval1", "interval2"]
+        mock_context.plan.return_value = mock_plan_changes
         result = SQLMeshResource.has_models_to_execute(mock_sqlmesh_resource)
         assert result is True
 
@@ -143,7 +173,8 @@ class TestSQLMeshResourceOptimization:
         result = SQLMeshResource.has_models_to_execute(mock_sqlmesh_resource, model_names)
         assert result is True
         mock_context.plan.assert_called_with(
-            select_models=model_names,
+            environment="dev",
+            include_models=model_names,
             auto_apply=False,
             no_prompts=True,
         )
