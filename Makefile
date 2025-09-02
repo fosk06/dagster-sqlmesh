@@ -65,13 +65,13 @@ vulture:
 # Lint code with ruff
 ruff:
 	@echo "🔍 Linting code with ruff..."
-	@uv run ruff check src/dg_sqlmesh/
+	@uv run ruff check src/dg_sqlmesh/ tests/
 	@echo "✅ Ruff linting completed!"
 
 # Format code with ruff
 format:
 	@echo "🎨 Formatting code with ruff..."
-	@uv run ruff format src/dg_sqlmesh/
+	@uv run ruff format src/dg_sqlmesh/ tests/
 	@echo "✅ Code formatting completed!"
 
 # Lint and format code
