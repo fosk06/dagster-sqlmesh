@@ -75,7 +75,7 @@ class TestBlockingParameter:
 
         # Get a model with custom audits if available
         context = sqlmesh_resource.context
-        
+
         # Use get_model instead of snapshots to avoid version check issues
         # Test with a model that we know has audits
         model_with_audits = context.get_model("sqlmesh_jaffle_platform.stg_supplies")
