@@ -7,6 +7,7 @@ import typing as t
 from sqlmesh.core.console import NoopConsole
 from sqlmesh.core.snapshot.definition import Snapshot, SnapshotId
 from contextlib import contextmanager
+from sqlmesh.core.snapshot.definition import Interval
 
 
 class SimpleRunTracker(NoopConsole):
@@ -29,13 +30,14 @@ class SimpleRunTracker(NoopConsole):
     def update_snapshot_evaluation_progress(
         self,
         snapshot: Snapshot,
-        interval: t.Any,
-        _batch_idx: int,
-        _duration_ms: t.Optional[int],
-        _num_audits_passed: int,
-        _num_audits_failed: int,
-        _audit_only: bool = False,
-        _auto_restatement_triggers: t.Optional[t.List[SnapshotId]] = None,
+        interval: Interval,
+        batch_idx: int,
+        duration_ms: t.Optional[int],
+        num_audits_passed: int,
+        num_audits_failed: int,
+        audit_only: bool = False,
+        execution_stats: t.Optional[t.Any] = None,
+        auto_restatement_triggers: t.Optional[t.List[SnapshotId]] = None,
     ) -> None:
         """Track executed model."""
         self.executed_models.add(snapshot.name)
