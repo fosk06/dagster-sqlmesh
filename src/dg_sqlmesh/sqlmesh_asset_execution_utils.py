@@ -429,7 +429,7 @@ def process_sqlmesh_results(
     results = sqlmesh_results.get_results(run_id)
     if results is None:
         context.log.error("No results found in sqlmesh_results for run %s", run_id)
-        return [], [], [], [], []
+        return [], [], [], [], [], [], []
     failed_check_results = results.get("failed_check_results", [])
     skipped_models_events = results.get("skipped_models_events", [])
     # Backward-compat: if legacy shape is present, return the 3-tuple expected by older tests
