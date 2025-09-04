@@ -37,15 +37,16 @@ from .sqlmesh_asset_execution_utils import (
     create_materialize_result,
 )
 from .sqlmesh_schedule_utils import should_skip_sqlmesh_run
-from .sqlmesh_hooks import get_sqlmesh_hooks, get_sqlmesh_resources
 
 
 class SQLMeshResultsResource(ConfigurableResource):
-    """Resource to share SQLMesh results between assets within the same run."""
+    """Resource to share SQLMesh results and dry-run state between assets within the same run."""
 
     def __init__(self):
         super().__init__()
         self._results = {}
+        self._dry_run_results = {}
+        self._dry_run_performed = {}
 
     def store_results(self, run_id: str, results: Dict[str, Any]) -> None:
         """Store SQLMesh results for a given run."""
@@ -58,6 +59,45 @@ class SQLMeshResultsResource(ConfigurableResource):
     def has_results(self, run_id: str) -> bool:
         """Check if results exist for a given run."""
         return run_id in self._results
+
+    def perform_shared_dry_run(self, run_id: str, sqlmesh_resource, context, selected_asset_keys):
+        """
+        Perform dry-run once per run and share results across all assets.
+        
+        Returns:
+            Dict with dry-run results or None if already performed
+        """
+        if run_id in self._dry_run_performed:
+            return self._dry_run_results.get(run_id)
+        
+        # Mark as performed
+        self._dry_run_performed[run_id] = True
+        
+        # Perform dry-run using our unified logic
+        from .sqlmesh_asset_execution_utils import should_skip_materialization_based_on_dry_run
+        
+        dry_run_result = should_skip_materialization_based_on_dry_run(
+            context, sqlmesh_resource, selected_asset_keys
+        )
+        
+        self._dry_run_results[run_id] = dry_run_result
+        
+        # Log dry-run results
+        if dry_run_result is None:
+            context.log.info("🔍 Shared dry-run: No models to execute")
+        else:
+            models_to_execute = len(dry_run_result["models_to_materialize"])
+            context.log.info(f"🔍 Shared dry-run: {models_to_execute} models will be executed")
+        
+        return dry_run_result
+
+    def get_dry_run_results(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """Get dry-run results for a given run."""
+        return self._dry_run_results.get(run_id)
+
+    def has_dry_run_results(self, run_id: str) -> bool:
+        """Check if dry-run results exist for a given run."""
+        return run_id in self._dry_run_performed
 
 
 # -------------------- Concurrency/Instance validation helpers --------------------
@@ -154,16 +194,14 @@ def sqlmesh_assets_factory(
             current_asset_spec = asset_spec
             current_model_checks = model_checks
 
-            # Check if we have shared state resource (from hooks)
-            shared_state = getattr(context.resources, "sqlmesh_shared_state", None)
-            
-            if shared_state:
-                # Use shared dry-run logic
+            # Check if dry-run already performed for this run
+            if not sqlmesh_results.has_dry_run_results(run_id):
+                # First asset in run - perform shared dry-run
                 context.log.info(f"Processing SQLMesh model: {current_model_name}")
                 
                 # Perform shared dry-run (only once per run)
-                dry_run_result = shared_state.perform_shared_dry_run(
-                    sqlmesh, context, context.selected_asset_keys
+                dry_run_result = sqlmesh_results.perform_shared_dry_run(
+                    run_id, sqlmesh, context, context.selected_asset_keys
                 )
                 
                 if dry_run_result is None:
@@ -207,8 +245,49 @@ def sqlmesh_assets_factory(
                 
                 # This model should be executed - proceed with normal logic
                 context.log.info(f"Model {current_model_name} will be executed")
-            
-            # Original logic for when hooks are not enabled
+            else:
+                # Use existing dry-run results
+                dry_run_result = sqlmesh_results.get_dry_run_results(run_id)
+                
+                if dry_run_result is None:
+                    # No models to execute - return success with skipped status
+                    context.log.info(f"Using existing dry-run results: No models to execute - skipping materialization")
+                    
+                    from .sqlmesh_asset_execution_utils import handle_successful_execution
+                    
+                    return handle_successful_execution(
+                        context=context,
+                        current_model_name=current_model_name,
+                        current_asset_spec=current_asset_spec,
+                        current_model_checks=current_model_checks,
+                        non_blocking_audit_warnings=[],
+                        notifier_audit_failures=[],
+                        sqlmesh_executed_models=[],  # No models executed
+                        sqlmesh_skipped_models=[current_model_name],  # This model was skipped
+                    )
+                
+                # Check if this specific model is in the execution list
+                models_to_materialize = dry_run_result["models_to_materialize"]
+                model_names = [model.name for model in models_to_materialize]
+                if current_model_name not in model_names:
+                    # This specific model is not in the execution list
+                    context.log.info(f"Using existing dry-run results: Model {current_model_name} not in execution list - skipping")
+                    
+                    from .sqlmesh_asset_execution_utils import handle_successful_execution
+                    
+                    return handle_successful_execution(
+                        context=context,
+                        current_model_name=current_model_name,
+                        current_asset_spec=current_asset_spec,
+                        current_model_checks=current_model_checks,
+                        non_blocking_audit_warnings=[],
+                        notifier_audit_failures=[],
+                        sqlmesh_executed_models=[],  # No models executed
+                        sqlmesh_skipped_models=[current_model_name],  # This model was skipped
+                    )
+                
+                # This model should be executed - proceed with normal logic
+                context.log.info(f"Using existing dry-run results: Model {current_model_name} will be executed")
             context.log.info(f"Processing SQLMesh model: {current_model_name}")
 
             # Check if SQLMesh already executed for this run
@@ -478,42 +557,26 @@ def sqlmesh_definitions_factory(
         owners=owners,
     )
 
-    # Create job with SQLMesh hooks
-    sqlmesh_job = define_asset_job(
-        name="sqlmesh_job",
-        selection=AssetSelection.assets(
-            *(key for ad in sqlmesh_assets for key in ad.keys)
-        ),
-        hooks=get_sqlmesh_hooks(),  # Add unified SQLMesh hooks
-        tags={
-            "sqlmesh": "true",
-            "dagster/max_retries": "0",
-            "dagster/retry_on_asset_or_op_failure": "false",
-        },
-    )
-
-    # Create adaptive schedule (only if enabled)
+    # Create adaptive schedule and job (only if enabled)
     schedules = []
+    jobs = []
+
     if enable_schedule:
-        sqlmesh_adaptive_schedule, _, _ = sqlmesh_adaptive_schedule_factory(
+        sqlmesh_adaptive_schedule, sqlmesh_job, _ = sqlmesh_adaptive_schedule_factory(
             sqlmesh_resource=sqlmesh_resource, name=schedule_name
         )
         schedules.append(sqlmesh_adaptive_schedule)
-
-    # Build resources dict
-    resources = {
-        "sqlmesh": sqlmesh_resource,
-        "sqlmesh_results": sqlmesh_results_resource,
-    }
-
-    # Add SQLMesh hooks resources
-    hooks_resources = get_sqlmesh_resources()
-    resources.update(hooks_resources)
+        jobs.append(sqlmesh_job)
+    else:
+        jobs.append(build_sqlmesh_job(sqlmesh_assets, name="sqlmesh_job"))
 
     # Return complete Definitions
     return Definitions(
         assets=sqlmesh_assets,
-        jobs=[sqlmesh_job],
+        jobs=jobs,
         schedules=schedules,
-        resources=resources,
+        resources={
+            "sqlmesh": sqlmesh_resource,
+            "sqlmesh_results": sqlmesh_results_resource,
+        },
     )
