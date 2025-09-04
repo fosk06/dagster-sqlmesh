@@ -78,11 +78,16 @@ class TestExecuteSQLMeshMaterialization:
                 lambda *args: [],
             )
 
-            # Act & Assert
-            with pytest.raises(Exception, match="No models found for selected assets"):
-                execute_sqlmesh_materialization(
-                    context, sqlmesh, sqlmesh_results, run_id, selected_asset_keys
-                )
+            # Act
+            result = execute_sqlmesh_materialization(
+                context, sqlmesh, sqlmesh_results, run_id, selected_asset_keys
+            )
+
+            # Assert - should return empty results instead of raising exception
+            assert result["sqlmesh_executed_models"] == []
+            assert result["sqlmesh_skipped_models"] == []
+            assert result["failed_check_results"] == []
+            assert result["skipped_models_events"] == []
 
 
 class TestProcessSQLMeshResults:

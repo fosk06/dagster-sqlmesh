@@ -12,7 +12,7 @@ from dagster import (
     AssetCheckSeverity,
     AssetKey,
 )
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 from .resource import SQLMeshResource
 from .sqlmesh_asset_utils import get_models_to_materialize
 from .resource import UpstreamAuditFailureError
@@ -162,6 +162,79 @@ def _model_has_failed_audits_for_asset(
 # All check result functions are imported from execution_check_results module
 
 
+def should_skip_materialization_based_on_dry_run(
+    context: AssetExecutionContext,
+    sqlmesh: SQLMeshResource,
+    selected_asset_keys: List[AssetKey],
+    environment: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Determines if materialization should be skipped based on dry-run results.
+    
+    This unifies the dry-run logic for both schedules and manual materializations.
+    
+    Args:
+        context: Dagster execution context
+        sqlmesh: SQLMesh resource
+        selected_asset_keys: Selected assets in this run
+        environment: SQLMesh environment to use (optional)
+        
+    Returns:
+        Dict with dry-run results if models should be executed, None if skipped
+    """
+    try:
+        # Resolve models to materialize
+        models_to_materialize = get_models_to_materialize(
+            selected_asset_keys,
+            sqlmesh.get_models,
+            sqlmesh.translator,
+        )
+        if not models_to_materialize:
+            context.log.warning(f"No models found for selected assets: {selected_asset_keys}")
+            return None
+
+        # Perform dry-run to check if there are models to execute
+        completion_status, dry_run_summary = sqlmesh.context.dry_run(
+            environment=environment or sqlmesh.environment,
+            select_models=[model.name for model in models_to_materialize],
+            ignore_cron=False,  # Don't ignore cron for realistic scenario
+        )
+
+        # Check if there are models to execute
+        if completion_status.is_nothing_to_do or dry_run_summary["would_execute"] == 0:
+            context.log.info(
+                f"Dry-run indicates no models to execute: {dry_run_summary['would_execute']} models would be executed"
+            )
+            return None
+
+        context.log.info(
+            f"Dry-run completed: {dry_run_summary['would_execute']} models will be executed"
+        )
+
+        # Return dry-run results for potential use in execution
+        return {
+            "completion_status": completion_status,
+            "dry_run_summary": dry_run_summary,
+            "models_to_materialize": models_to_materialize,
+        }
+
+    except Exception as e:
+        context.log.warning(f"Dry-run failed, proceeding with materialization: {e}")
+        # Fallback: return models to materialize without dry-run results
+        models_to_materialize = get_models_to_materialize(
+            selected_asset_keys,
+            sqlmesh.get_models,
+            sqlmesh.translator,
+        )
+        if models_to_materialize:
+            return {
+                "completion_status": None,
+                "dry_run_summary": None,
+                "models_to_materialize": models_to_materialize,
+            }
+        return None
+
+
 def execute_sqlmesh_materialization(
     context: AssetExecutionContext,
     sqlmesh: SQLMeshResource,
@@ -182,14 +255,31 @@ def execute_sqlmesh_materialization(
     Returns:
         Dict with captured execution results for later reuse in the same run
     """
-    # Resolve models to materialize
-    models_to_materialize = get_models_to_materialize(
-        selected_asset_keys,
-        sqlmesh.get_models,
-        sqlmesh.translator,
+    # Check if materialization should be skipped based on dry-run
+    dry_run_result = should_skip_materialization_based_on_dry_run(
+        context, sqlmesh, selected_asset_keys
     )
-    if not models_to_materialize:
-        raise Exception(f"No models found for selected assets: {selected_asset_keys}")
+    
+    if dry_run_result is None:
+        # No models to execute - create empty results
+        context.log.info("No models to execute based on dry-run - skipping materialization")
+        return {
+            "failed_check_results": [],
+            "skipped_models_events": [],
+            "evaluation_events": [],
+            "non_blocking_audit_warnings": [],
+            "notifier_audit_failures": [],
+            "affected_downstream_asset_keys": [],
+            "sqlmesh_executed_models": [],
+            "sqlmesh_skipped_models": [model.name for model in get_models_to_materialize(
+                selected_asset_keys,
+                sqlmesh.get_models,
+                sqlmesh.translator,
+            )],
+        }
+
+    # Extract models to materialize from dry-run result
+    models_to_materialize = dry_run_result["models_to_materialize"]
 
     # Single SQLMesh execution
     context.log.info(
@@ -520,6 +610,9 @@ def handle_successful_execution(
         # Handle execution status check for ALL models
         # Check if this model was executed by SQLMesh (using tracker results)
         model_was_executed_by_sqlmesh = current_model_name in sqlmesh_executed_models
+        
+        # Check if this model was skipped due to dry-run (no models executed at all)
+        materialization_was_skipped = len(sqlmesh_executed_models) == 0 and len(sqlmesh_skipped_models) > 0
 
         # Find the execution status check spec
         execution_status_check = next(
@@ -532,7 +625,22 @@ def handle_successful_execution(
         )
 
         if execution_status_check:
-            if model_was_executed_by_sqlmesh:
+            if materialization_was_skipped:
+                # Materialization was completely skipped by dry-run → SUCCESS (no work to do)
+                check_results.append(
+                    AssetCheckResult(
+                        passed=True,
+                        severity=AssetCheckSeverity.WARN,  # Use WARN since INFO doesn't exist
+                        check_name="sqlmesh_execution_status",
+                        metadata={
+                            "sqlmesh_model": current_model_name,
+                            "check_type": "execution_status",
+                            "status": "skipped_by_dry_run",
+                            "message": f"Model {current_model_name} was skipped by dry-run (no new data to compute)",
+                        },
+                    )
+                )
+            elif model_was_executed_by_sqlmesh:
                 # Model was executed → SUCCESS
                 check_results.append(
                     AssetCheckResult(

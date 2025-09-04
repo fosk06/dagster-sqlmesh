@@ -283,6 +283,59 @@ class TestSQLMeshExecutionStatusCheckResults:
         # Pas de check results car pas de checks
         assert result.check_results is None or len(result.check_results) == 0
 
+    def test_execution_status_check_skipped_by_dry_run(self):
+        """Test that the check returns SUCCESS when materialization was skipped by dry-run."""
+        # Arrange
+        context = Mock(spec=AssetExecutionContext)
+        context.log.info = Mock()
+        context.log.debug = Mock()
+
+        current_model_name = "test_schema.test_model"
+        current_asset_spec = Mock()
+        current_asset_spec.key = AssetKey(["test_db", "test_schema", "test_model"])
+
+        # Create a proper mock with metadata
+        mock_check = Mock()
+        mock_check.name = "sqlmesh_execution_status"
+        mock_check.metadata = {
+            "sqlmesh_model": "test_schema.test_model",
+            "check_type": "execution_status",
+        }
+        current_model_checks = [mock_check]
+
+        # Materialization was completely skipped by dry-run
+        sqlmesh_executed_models = []  # No models executed
+        sqlmesh_skipped_models = ["test_schema.test_model"]  # Model was skipped
+
+        # Act
+        result = handle_successful_execution(
+            context=context,
+            current_model_name=current_model_name,
+            current_asset_spec=current_asset_spec,
+            current_model_checks=current_model_checks,
+            non_blocking_audit_warnings=[],
+            notifier_audit_failures=[],
+            sqlmesh_executed_models=sqlmesh_executed_models,
+            sqlmesh_skipped_models=sqlmesh_skipped_models,
+        )
+
+        # Assert
+        assert result is not None
+        assert result.check_results is not None
+
+        # Find the sqlmesh_execution_status check
+        execution_status_check = next(
+            check
+            for check in result.check_results
+            if check.check_name == "sqlmesh_execution_status"
+        )
+
+        assert execution_status_check is not None
+        assert execution_status_check.passed is True  # SUCCESS when skipped by dry-run
+        assert execution_status_check.severity == AssetCheckSeverity.WARN
+        assert execution_status_check.metadata["status"].text == "skipped_by_dry_run"
+        assert "skipped by dry-run" in execution_status_check.metadata["message"].text
+
 
 class TestSQLMeshExecutionStatusIntegration:
     """Tests d'intégration pour sqlmesh_execution_status."""
