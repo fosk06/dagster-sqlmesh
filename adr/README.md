@@ -31,6 +31,7 @@ Architecture Decision Records are documents that capture important architectural
 | [ADR-0014](./0014-refactoring-plan-consolidation.md)                      | Refactoring Plan Consolidation                          | Accepted | 2025-01-27 |
 | [ADR-0015](./0015-custom-sqlmesh-console-execution-tracking.md)           | Custom SQLMesh Console for Model Execution Tracking     | Accepted | 2025-08-27 |
 | [ADR-0016](./0016-sqlmesh-model-skip-detection-assetcheck-integration.md) | SQLMesh Model Skip Detection and AssetCheck Integration | Accepted | 2025-08-27 |
+| [ADR-0017](./0017-enhanced-context-composition-pattern.md) | EnhancedContext Composition Pattern with Metaprogramming | Accepted | 2025-09-04 |
 
 ## Key Architectural Patterns
 
@@ -85,6 +86,10 @@ Custom SQLMesh console (`SimpleRunTracker`) injected into `sqlmesh.context.conso
 ### 13. Execution Status AssetCheck Pattern
 
 Automatic `sqlmesh_execution_status` AssetCheck added to all SQLMesh models, providing clear feedback to users about whether a model was executed or skipped by SQLMesh. This integrates seamlessly with Dagster's existing AssetCheck system.
+
+### 14. EnhancedContext Composition Pattern
+
+`EnhancedContext` uses composition with metaprogramming (`__getattr__`) to extend SQLMesh `Context` functionality while maintaining full API compatibility. This pattern provides dry-run capabilities, automatic method delegation, and robustness against SQLMesh API changes.
 
 ## Current Limitations
 
