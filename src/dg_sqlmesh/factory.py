@@ -320,31 +320,22 @@ def sqlmesh_assets_factory(
                 
                 # This model should be executed - proceed with normal logic
                 context.log.info(f"🔍 [ASSET] Using existing dry-run results: Model {current_model_name} will be executed - proceeding with normal SQLMesh logic")
-            context.log.info(f"Processing SQLMesh model: {current_model_name}")
-
-            # Check if SQLMesh already executed for this run
-            if not sqlmesh_results.has_results(run_id):
-                # First asset in run - execute SQLMesh for all selected assets
-                selected_asset_keys = context.selected_asset_keys
-                models_to_materialize = get_models_to_materialize(
-                    selected_asset_keys,
-                    sqlmesh.get_models,
-                    sqlmesh.translator,
-                )
-                plan = sqlmesh.materialize_assets_threaded(models_to_materialize)
-
-                # Store results for other assets in this run
-                results = {
-                    "failed_check_results": sqlmesh._process_failed_models_events(),
-                    "skipped_models_events": sqlmesh._console.get_skipped_models_events(),
-                    "evaluation_events": sqlmesh._console.get_evaluation_events(),
-                }
-                sqlmesh_results.store_results(run_id, results)
-            else:
-                # Use existing results from this run
-                results = sqlmesh_results.get_results(run_id)
-
-            # Retrieve results for this run
+            
+            # Execute SQLMesh materialization using the unified logic
+            context.log.info(f"🔍 [ASSET] Executing SQLMesh materialization for model: {current_model_name}")
+            
+            # Use the unified execute_sqlmesh_materialization function
+            from .sqlmesh_asset_execution_utils import execute_sqlmesh_materialization
+            
+            results = execute_sqlmesh_materialization(
+                context=context,
+                sqlmesh=sqlmesh,
+                sqlmesh_results=sqlmesh_results,
+                run_id=run_id,
+                selected_asset_keys=context.selected_asset_keys,
+            )
+            
+            # Process results for this specific model
             (
                 failed_check_results,
                 skipped_models_events,
