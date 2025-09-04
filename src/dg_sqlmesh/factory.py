@@ -194,11 +194,13 @@ def sqlmesh_assets_factory(
 
     def create_model_asset(model_name: str, asset_spec: Any, model_checks: List[Any]):
         @asset(
-            **asset_spec.asset_spec,
-            check_specs=model_checks,
-            deps=asset_spec.deps,
+            key=asset_spec.key,
+            description=f"SQLMesh model: {model_name}",
             group_name=asset_spec.group_name,
-            op_tags=asset_spec.op_tags,
+            metadata=asset_spec.metadata,
+            deps=asset_spec.deps,
+            check_specs=model_checks,
+            op_tags=op_tags,
             retry_policy=RetryPolicy(max_retries=0),
         )
         def model_asset(context: AssetExecutionContext):
