@@ -1,5 +1,5 @@
 """
-Tests pour les utilitaires de schedule SQLMesh.
+Tests for SQLMesh schedule utilities.
 """
 
 import datetime
@@ -15,19 +15,19 @@ from dg_sqlmesh import SQLMeshResource
 
 
 class TestSQLMeshScheduleUtils:
-    """Tests pour les utilitaires de schedule SQLMesh."""
+    """Tests for SQLMesh schedule utilities."""
 
     def test_should_skip_sqlmesh_run_with_models_to_execute(
         self, sqlmesh_resource: SQLMeshResource
     ):
-        """Test que should_skip_sqlmesh_run retourne None quand il y a des modèles à exécuter."""
+        """Test that should_skip_sqlmesh_run returns None when there are models to execute."""
 
-        # Mock du contexte de schedule
+        # Mock the schedule context
         mock_context = Mock(spec=ScheduleEvaluationContext)
         mock_context.scheduled_execution_time = datetime.datetime.now()
         mock_context.log.info = Mock()
 
-        # Mock du SQLMeshResource temporaire et de son dry_run
+        # Mock the temporary SQLMeshResource and its dry_run
         with patch(
             "dg_sqlmesh.sqlmesh_schedule_utils.SQLMeshResource"
         ) as mock_resource_class:
@@ -55,13 +55,13 @@ class TestSQLMeshScheduleUtils:
     def test_should_skip_sqlmesh_run_with_no_models(
         self, sqlmesh_resource: SQLMeshResource
     ):
-        """Test que should_skip_sqlmesh_run retourne SkipReason quand il n'y a pas de modèles à exécuter."""
+        """Test that should_skip_sqlmesh_run returns SkipReason when there are no models to execute."""
 
-        # Mock du contexte de schedule
+        # Mock the schedule context
         mock_context = Mock(spec=ScheduleEvaluationContext)
         mock_context.scheduled_execution_time = datetime.datetime.now()
 
-        # Mock du SQLMeshResource temporaire et de son dry_run
+        # Mock the temporary SQLMeshResource and its dry_run
         with patch(
             "dg_sqlmesh.sqlmesh_schedule_utils.SQLMeshResource"
         ) as mock_resource_class:
@@ -87,14 +87,14 @@ class TestSQLMeshScheduleUtils:
     def test_should_skip_sqlmesh_run_with_exception(
         self, sqlmesh_resource: SQLMeshResource
     ):
-        """Test que should_skip_sqlmesh_run gère les exceptions et continue."""
+        """Test that should_skip_sqlmesh_run handles exceptions and continues."""
 
-        # Mock du contexte de schedule
+        # Mock the schedule context
         mock_context = Mock(spec=ScheduleEvaluationContext)
         mock_context.scheduled_execution_time = datetime.datetime.now()
         mock_context.log.warning = Mock()
 
-        # Mock du SQLMeshResource temporaire et de son dry_run qui lève une exception
+        # Mock the temporary SQLMeshResource and its dry_run that raises an exception
         with patch(
             "dg_sqlmesh.sqlmesh_schedule_utils.SQLMeshResource"
         ) as mock_resource_class:
@@ -104,17 +104,17 @@ class TestSQLMeshScheduleUtils:
 
             result = should_skip_sqlmesh_run(sqlmesh_resource, mock_context)
 
-            assert result is None  # Continue avec le run
+            assert result is None  # Continue with the run
             mock_context.log.warning.assert_called_once_with(
                 "SQLMesh dry-run failed, proceeding with run: Test error"
             )
 
     def test_get_sqlmesh_dry_run_summary(self, sqlmesh_resource: SQLMeshResource):
-        """Test que get_sqlmesh_dry_run_summary fonctionne correctement."""
+        """Test that get_sqlmesh_dry_run_summary works correctly."""
 
         execution_time = datetime.datetime.now()
 
-        # Mock du SQLMeshResource temporaire et de son dry_run
+        # Mock the temporary SQLMeshResource and its dry_run
         with patch(
             "dg_sqlmesh.sqlmesh_schedule_utils.SQLMeshResource"
         ) as mock_resource_class:
@@ -140,7 +140,7 @@ class TestSQLMeshScheduleUtils:
             assert dry_run_summary["would_execute"] == 2
             assert dry_run_summary["successful_models"] == ["model1", "model2"]
 
-            # Vérifier que dry_run a été appelé avec les bons paramètres
+            # Verify that dry_run was called with the correct parameters
             mock_temp_resource.context.dry_run.assert_called_once_with(
                 environment="dev", execution_time=execution_time
             )
@@ -148,9 +148,9 @@ class TestSQLMeshScheduleUtils:
     def test_get_sqlmesh_dry_run_summary_defaults(
         self, sqlmesh_resource: SQLMeshResource
     ):
-        """Test que get_sqlmesh_dry_run_summary utilise les valeurs par défaut."""
+        """Test that get_sqlmesh_dry_run_summary uses default values."""
 
-        # Mock du SQLMeshResource temporaire et de son dry_run
+        # Mock the temporary SQLMeshResource and its dry_run
         with patch(
             "dg_sqlmesh.sqlmesh_schedule_utils.SQLMeshResource"
         ) as mock_resource_class:
@@ -167,7 +167,7 @@ class TestSQLMeshScheduleUtils:
 
             assert completion_status == CompletionStatus.SUCCESS
 
-            # Vérifier que dry_run a été appelé avec les valeurs par défaut
+            # Verify that dry_run was called with default values
             mock_temp_resource.context.dry_run.assert_called_once()
             call_args = mock_temp_resource.context.dry_run.call_args
             assert call_args[1]["environment"] == sqlmesh_resource.environment

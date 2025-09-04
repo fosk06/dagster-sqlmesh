@@ -1,5 +1,5 @@
 """
-Utilitaires pour les schedules SQLMesh.
+Utilities for SQLMesh schedules.
 """
 
 import datetime
@@ -15,18 +15,18 @@ def should_skip_sqlmesh_run(
     environment: Optional[str] = None,
 ) -> Optional[SkipReason]:
     """
-    Détermine si un run SQLMesh doit être ignoré basé sur un dry-run.
-
+    Determines if a SQLMesh run should be skipped based on a dry-run.
+    
     Args:
-        sqlmesh_resource: Le SQLMesh resource configuré
-        context: Le contexte d'évaluation du schedule Dagster
-        environment: L'environnement SQLMesh à utiliser (optionnel)
-
+        sqlmesh_resource: The configured SQLMesh resource
+        context: The Dagster schedule evaluation context
+        environment: The SQLMesh environment to use (optional)
+        
     Returns:
-        SkipReason si le run doit être ignoré, None sinon
+        SkipReason if the run should be skipped, None otherwise
     """
     try:
-        # Créer un SQLMesh resource temporaire pour le dry-run
+                # Create a temporary SQLMesh resource for dry-run
         temp_sqlmesh_resource = SQLMeshResource(
             project_dir=sqlmesh_resource.project_dir,
             gateway=sqlmesh_resource.gateway,
@@ -34,28 +34,28 @@ def should_skip_sqlmesh_run(
             translator=sqlmesh_resource.translator,
             concurrency_limit=sqlmesh_resource.concurrency_limit,
         )
-
-        # Effectuer le dry-run pour vérifier s'il y a des modèles à exécuter
+        
+        # Perform dry-run to check if there are models to execute
         completion_status, dry_run_summary = temp_sqlmesh_resource.context.dry_run(
             environment=environment or sqlmesh_resource.environment,
             execution_time=context.scheduled_execution_time or datetime.datetime.now(),
         )
-
-        # Vérifier s'il y a des modèles à exécuter
+        
+        # Check if there are models to execute
         if completion_status.is_nothing_to_do or dry_run_summary["would_execute"] == 0:
             return SkipReason(
                 f"No new data available - nothing to process. Dry-run summary: {dry_run_summary['would_execute']} models would be executed"
             )
-
+        
         context.log.info(
             f"SQLMesh dry-run completed: {dry_run_summary['would_execute']} models will be executed"
         )
-
-        return None  # Pas de skip, continuer avec le run
-
+        
+        return None  # No skip, continue with the run
+        
     except Exception as e:
         context.log.warning(f"SQLMesh dry-run failed, proceeding with run: {e}")
-        return None  # En cas d'erreur, continuer avec le run comme fallback
+        return None  # In case of error, continue with the run as fallback
 
 
 def get_sqlmesh_dry_run_summary(
@@ -64,17 +64,17 @@ def get_sqlmesh_dry_run_summary(
     execution_time: Optional[datetime.datetime] = None,
 ) -> Tuple[CompletionStatus, Dict[str, Any]]:
     """
-    Obtient un résumé du dry-run SQLMesh.
-
+    Gets a summary of the SQLMesh dry-run.
+    
     Args:
-        sqlmesh_resource: Le SQLMesh resource configuré
-        environment: L'environnement SQLMesh à utiliser (optionnel)
-        execution_time: Le temps d'exécution (optionnel)
-
+        sqlmesh_resource: The configured SQLMesh resource
+        environment: The SQLMesh environment to use (optional)
+        execution_time: The execution time (optional)
+        
     Returns:
         Tuple[CompletionStatus, Dict]: (status, dry_run_summary)
     """
-    # Créer un SQLMesh resource temporaire pour le dry-run
+        # Create a temporary SQLMesh resource for dry-run
     temp_sqlmesh_resource = SQLMeshResource(
         project_dir=sqlmesh_resource.project_dir,
         gateway=sqlmesh_resource.gateway,
@@ -82,11 +82,11 @@ def get_sqlmesh_dry_run_summary(
         translator=sqlmesh_resource.translator,
         concurrency_limit=sqlmesh_resource.concurrency_limit,
     )
-
-    # Effectuer le dry-run
+    
+    # Perform the dry-run
     completion_status, dry_run_summary = temp_sqlmesh_resource.context.dry_run(
         environment=environment or sqlmesh_resource.environment,
         execution_time=execution_time or datetime.datetime.now(),
     )
-
+    
     return completion_status, dry_run_summary

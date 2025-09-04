@@ -1,6 +1,6 @@
 """
-EnhancedContext : Une extension de Context SQLMesh avec fonctionnalités étendues.
-Utilise la métaprogrammation pour déléguer automatiquement toutes les méthodes de Context.
+EnhancedContext: An extension of SQLMesh Context with enhanced functionality.
+Uses metaprogramming to automatically delegate all Context methods.
 """
 
 import typing as t
@@ -13,7 +13,7 @@ from sqlmesh.utils import CompletionStatus
 
 
 class DryRunSnapshotEvaluator(SnapshotEvaluator):
-    """SnapshotEvaluator qui simule l'exécution sans faire les vraies requêtes SQL."""
+    """SnapshotEvaluator that simulates execution without executing real SQL queries."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -33,12 +33,12 @@ class DryRunSnapshotEvaluator(SnapshotEvaluator):
         target_table_exists: t.Optional[bool],
         **kwargs: t.Any,
     ) -> t.Optional[str]:
-        """Surcharge pour éviter l'exécution SQL et la mise à jour du state."""
+        """Override to avoid SQL execution and state updates."""
 
         if not snapshot.is_model:
             return None
 
-        # Enregistrer la simulation
+        # Record the simulation
         simulation = {
             "snapshot_name": snapshot.name,
             "start": start,
@@ -49,14 +49,14 @@ class DryRunSnapshotEvaluator(SnapshotEvaluator):
         }
         self.simulated_executions.append(simulation)
 
-        # SIMULATION : On fait juste semblant d'exécuter
+        # SIMULATION: Just pretend to execute
         print(f"🔍 DRY-RUN: Would execute {snapshot.name}")
 
-        # Retourner un hash simulé (pas de WAP ID réel)
+        # Return a simulated hash (not a real WAP ID)
         return f"dry_run_hash_{snapshot.name}_{batch_index}"
 
     def get_dry_run_summary(self) -> t.Dict[str, t.Any]:
-        """Retourne un résumé de ce qui aurait été exécuté."""
+        """Returns a summary of what would have been executed."""
         successful = [
             s for s in self.simulated_executions if s.get("action") == "would_execute"
         ]
@@ -74,16 +74,16 @@ class DryRunSnapshotEvaluator(SnapshotEvaluator):
         }
 
     def clear_simulation(self):
-        """Remet à zéro les simulations."""
+        """Reset the simulations."""
         self.simulated_executions.clear()
 
 
 class EnhancedContext:
     """
-    Context SQLMesh avec fonctionnalités étendues.
+    SQLMesh Context with enhanced functionality.
 
-    Utilise la métaprogrammation pour déléguer automatiquement toutes les méthodes
-    de Context tout en ajoutant des fonctionnalités comme dry_run().
+    Uses metaprogramming to automatically delegate all Context methods
+    while adding features like dry_run().
     """
 
     def __init__(self, context: Context):
@@ -91,30 +91,30 @@ class EnhancedContext:
         self._dry_run_evaluator: t.Optional[DryRunSnapshotEvaluator] = None
         self._method_cache = {}
 
-        # Pas de création automatique de méthodes pour éviter les problèmes d'initialisation
+        # No automatic method creation to avoid initialization issues
 
     def __getattr__(self, name: str) -> t.Any:
-        """Délègue automatiquement toutes les méthodes non définies à Context avec cache."""
+        """Automatically delegates all undefined methods to Context with caching."""
 
-        # Vérifier le cache d'abord
+        # Check cache first
         if name in self._method_cache:
             return self._method_cache[name]
 
-        # Si c'est une méthode de Context
+        # If it's a Context method
         if hasattr(self._context, name):
             attr = getattr(self._context, name)
 
             if callable(attr):
-                # Wrapper la méthode
+                # Wrap the method
                 @wraps(attr)
                 def wrapped_method(*args, **kwargs):
                     return attr(*args, **kwargs)
 
-                # Mettre en cache
+                # Cache the method
                 self._method_cache[name] = wrapped_method
                 return wrapped_method
 
-            # Mettre en cache l'attribut
+            # Cache the attribute
             self._method_cache[name] = attr
             return attr
 
@@ -124,9 +124,9 @@ class EnhancedContext:
 
     @property
     def dry_run_evaluator(self) -> DryRunSnapshotEvaluator:
-        """Lazy création du dry-run evaluator."""
+        """Lazy creation of the dry-run evaluator."""
         if not self._dry_run_evaluator:
-            # Gérer le cas où ddl_concurrent_tasks n'existe pas
+            # Handle the case where ddl_concurrent_tasks doesn't exist
             ddl_concurrent_tasks = getattr(
                 self._context.config, "ddl_concurrent_tasks", 1
             )
@@ -151,31 +151,31 @@ class EnhancedContext:
         no_auto_upstream: bool = False,
     ) -> t.Tuple[CompletionStatus, t.Dict[str, t.Any]]:
         """
-        Dry-run de sqlmesh run : fait tout le processus SAUF l'exécution SQL.
+        SQLMesh run dry-run: performs the entire process EXCEPT SQL execution.
 
-        Même signature que run() mais retourne aussi le résumé du dry-run.
+        Same signature as run() but also returns the dry-run summary.
 
         Args:
-            Mêmes arguments que Context.run()
+            Same arguments as Context.run()
 
         Returns:
             Tuple[CompletionStatus, Dict]: (status, dry_run_summary)
         """
         print("🔍 Starting SQLMesh dry-run...")
 
-        # Reset du dry-run evaluator
+        # Reset the dry-run evaluator
         self.dry_run_evaluator.clear_simulation()
 
         try:
-            # Utiliser la même logique que run() mais avec notre evaluator
+            # Use the same logic as run() but with our evaluator
             environment = environment or self._context.config.default_target_environment
 
-            # Créer le scheduler avec notre dry-run evaluator
+            # Create the scheduler with our dry-run evaluator
             scheduler = self._context.scheduler(
                 environment=environment, snapshot_evaluator=self.dry_run_evaluator
             )
 
-            # Exécuter le "run" avec simulation
+            # Execute the "run" with simulation
             completion_status = scheduler.run(
                 environment=environment,
                 start=start,
@@ -184,10 +184,10 @@ class EnhancedContext:
                 ignore_cron=ignore_cron,
                 selected_snapshots=set(select_models) if select_models else None,
                 auto_restatement_enabled=environment.lower() == "prod",
-                run_environment_statements=False,  # Pas de statements d'env en dry-run
+                run_environment_statements=False,  # No env statements in dry-run
             )
 
-            # Récupérer le résumé
+            # Get the summary
             dry_run_summary = self.dry_run_evaluator.get_dry_run_summary()
 
             print(f"🎯 Dry-run completed: {completion_status}")
@@ -207,10 +207,10 @@ class EnhancedContext:
         **dry_run_kwargs,
     ) -> bool:
         """
-        Méthode utilitaire pour savoir si run() va exécuter des modèles.
+        Utility method to know if run() will execute models.
 
         Returns:
-            bool: True si des modèles vont être exécutés, False sinon
+            bool: True if models will be executed, False otherwise
         """
         completion_status, _ = self.dry_run(
             environment=environment, select_models=select_models, **dry_run_kwargs
@@ -225,10 +225,10 @@ class EnhancedContext:
         **dry_run_kwargs,
     ) -> t.List[str]:
         """
-        Méthode utilitaire pour obtenir la liste des modèles qui seraient exécutés.
+        Utility method to get the list of models that would be executed.
 
         Returns:
-            List[str]: Liste des noms de modèles qui seraient exécutés
+            List[str]: List of model names that would be executed
         """
         completion_status, dry_run_summary = self.dry_run(
             environment=environment, select_models=select_models, **dry_run_kwargs
