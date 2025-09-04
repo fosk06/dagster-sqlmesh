@@ -374,7 +374,7 @@ def sqlmesh_assets_factory(
             return result
 
         # Rename to avoid collisions
-        model_asset.__name__ = f"sqlmesh_{current_model_name}_asset"
+        model_asset.__name__ = f"sqlmesh_{model_name}_asset"
         return model_asset
 
     # Use existing utilities
