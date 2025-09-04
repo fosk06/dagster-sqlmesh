@@ -275,6 +275,16 @@ def execute_sqlmesh_materialization(
     Returns:
         Dict with captured execution results for later reuse in the same run
     """
+    context.log.info(f"🔍 [EXEC] Starting execute_sqlmesh_materialization for run_id: {run_id}")
+    context.log.info(f"🔍 [EXEC] SQLMesh already executed: {sqlmesh_results.has_results(run_id)}")
+    
+    # Check if SQLMesh already executed for this run
+    if sqlmesh_results.has_results(run_id):
+        context.log.info(f"🔍 [EXEC] Using existing SQLMesh results for run_id: {run_id}")
+        return sqlmesh_results.get_results(run_id)
+    
+    context.log.info(f"🔍 [EXEC] First asset in run - executing SQLMesh materialization")
+    
     # Check if materialization should be skipped based on dry-run
     dry_run_result = should_skip_materialization_based_on_dry_run(
         context, sqlmesh, selected_asset_keys
@@ -283,9 +293,9 @@ def execute_sqlmesh_materialization(
     if dry_run_result is None:
         # No models to execute - create empty results
         context.log.info(
-            "No models to execute based on dry-run - skipping materialization"
+            f"🔍 [EXEC] No models to execute based on dry-run - skipping materialization"
         )
-        return {
+        empty_results = {
             "failed_check_results": [],
             "skipped_models_events": [],
             "evaluation_events": [],
@@ -302,13 +312,15 @@ def execute_sqlmesh_materialization(
                 )
             ],
         }
+        sqlmesh_results.store_results(run_id, empty_results)
+        return empty_results
 
     # Extract models to materialize from dry-run result
     models_to_materialize = dry_run_result["models_to_materialize"]
 
     # Single SQLMesh execution
     context.log.info(
-        f"Materializing {len(models_to_materialize)} models: {[m.name for m in models_to_materialize]}"
+        f"🔍 [EXEC] Materializing {len(models_to_materialize)} models: {[m.name for m in models_to_materialize]}"
     )
     context.log.debug(
         "Starting SQLMesh materialization (count=%d)", len(models_to_materialize)
