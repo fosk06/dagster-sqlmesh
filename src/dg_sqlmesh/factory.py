@@ -67,27 +67,43 @@ class SQLMeshResultsResource(ConfigurableResource):
         Returns:
             Dict with dry-run results or None if already performed
         """
+        context.log.info(f"🔍 [DRY-RUN] Starting shared dry-run for run_id: {run_id}")
+        context.log.info(f"🔍 [DRY-RUN] Selected asset keys: {selected_asset_keys}")
+        context.log.info(f"🔍 [DRY-RUN] Dry-run already performed: {run_id in self._dry_run_performed}")
+        
         if run_id in self._dry_run_performed:
-            return self._dry_run_results.get(run_id)
+            context.log.info(f"🔍 [DRY-RUN] Using existing dry-run results for run_id: {run_id}")
+            existing_result = self._dry_run_results.get(run_id)
+            if existing_result is None:
+                context.log.info(f"🔍 [DRY-RUN] Existing result: No models to execute")
+            else:
+                models_count = len(existing_result["models_to_materialize"])
+                context.log.info(f"🔍 [DRY-RUN] Existing result: {models_count} models to execute")
+            return existing_result
         
         # Mark as performed
         self._dry_run_performed[run_id] = True
+        context.log.info(f"🔍 [DRY-RUN] Marking dry-run as performed for run_id: {run_id}")
         
         # Perform dry-run using our unified logic
         from .sqlmesh_asset_execution_utils import should_skip_materialization_based_on_dry_run
         
+        context.log.info(f"🔍 [DRY-RUN] Calling should_skip_materialization_based_on_dry_run...")
         dry_run_result = should_skip_materialization_based_on_dry_run(
             context, sqlmesh_resource, selected_asset_keys
         )
         
         self._dry_run_results[run_id] = dry_run_result
+        context.log.info(f"🔍 [DRY-RUN] Stored dry-run results for run_id: {run_id}")
         
         # Log dry-run results
         if dry_run_result is None:
-            context.log.info("🔍 Shared dry-run: No models to execute")
+            context.log.info(f"🔍 [DRY-RUN] RESULT: No models to execute - all assets will be skipped")
         else:
             models_to_execute = len(dry_run_result["models_to_materialize"])
-            context.log.info(f"🔍 Shared dry-run: {models_to_execute} models will be executed")
+            model_names = [model.name for model in dry_run_result["models_to_materialize"]]
+            context.log.info(f"🔍 [DRY-RUN] RESULT: {models_to_execute} models will be executed")
+            context.log.info(f"🔍 [DRY-RUN] Models to execute: {model_names}")
         
         return dry_run_result
 
@@ -195,9 +211,13 @@ def sqlmesh_assets_factory(
             current_model_checks = model_checks
 
             # Check if dry-run already performed for this run
+            context.log.info(f"🔍 [ASSET] Processing SQLMesh model: {current_model_name}")
+            context.log.info(f"🔍 [ASSET] Run ID: {run_id}")
+            context.log.info(f"🔍 [ASSET] Dry-run already performed: {sqlmesh_results.has_dry_run_results(run_id)}")
+            
             if not sqlmesh_results.has_dry_run_results(run_id):
                 # First asset in run - perform shared dry-run
-                context.log.info(f"Processing SQLMesh model: {current_model_name}")
+                context.log.info(f"🔍 [ASSET] First asset in run - performing shared dry-run")
                 
                 # Perform shared dry-run (only once per run)
                 dry_run_result = sqlmesh_results.perform_shared_dry_run(
@@ -206,7 +226,8 @@ def sqlmesh_assets_factory(
                 
                 if dry_run_result is None:
                     # No models to execute - return success with skipped status
-                    context.log.info(f"No models to execute based on shared dry-run - skipping materialization")
+                    context.log.info(f"🔍 [ASSET] No models to execute based on shared dry-run - skipping materialization")
+                    context.log.info(f"🔍 [ASSET] Returning skipped-by-dry-run status for model: {current_model_name}")
                     
                     # Create result with skipped-by-dry-run status
                     from .sqlmesh_asset_execution_utils import handle_successful_execution
@@ -224,13 +245,17 @@ def sqlmesh_assets_factory(
                 
                 # Models to execute - proceed with normal execution
                 models_to_materialize = dry_run_result["models_to_materialize"]
-                context.log.info(f"Shared dry-run indicates {len(models_to_materialize)} models to execute")
+                context.log.info(f"🔍 [ASSET] Shared dry-run indicates {len(models_to_materialize)} models to execute")
                 
                 # Check if this specific model is in the execution list
                 model_names = [model.name for model in models_to_materialize]
+                context.log.info(f"🔍 [ASSET] Models to execute: {model_names}")
+                context.log.info(f"🔍 [ASSET] Current model '{current_model_name}' in execution list: {current_model_name in model_names}")
+                
                 if current_model_name not in model_names:
                     # This specific model is not in the execution list
-                    context.log.info(f"Model {current_model_name} not in execution list - skipping")
+                    context.log.info(f"🔍 [ASSET] Model {current_model_name} not in execution list - skipping")
+                    context.log.info(f"🔍 [ASSET] Returning skipped-by-dry-run status for model: {current_model_name}")
                     
                     return handle_successful_execution(
                         context=context,
@@ -244,14 +269,16 @@ def sqlmesh_assets_factory(
                     )
                 
                 # This model should be executed - proceed with normal logic
-                context.log.info(f"Model {current_model_name} will be executed")
+                context.log.info(f"🔍 [ASSET] Model {current_model_name} will be executed - proceeding with normal SQLMesh logic")
             else:
                 # Use existing dry-run results
+                context.log.info(f"🔍 [ASSET] Using existing dry-run results for run_id: {run_id}")
                 dry_run_result = sqlmesh_results.get_dry_run_results(run_id)
                 
                 if dry_run_result is None:
                     # No models to execute - return success with skipped status
-                    context.log.info(f"Using existing dry-run results: No models to execute - skipping materialization")
+                    context.log.info(f"🔍 [ASSET] Using existing dry-run results: No models to execute - skipping materialization")
+                    context.log.info(f"🔍 [ASSET] Returning skipped-by-dry-run status for model: {current_model_name}")
                     
                     from .sqlmesh_asset_execution_utils import handle_successful_execution
                     
@@ -269,9 +296,14 @@ def sqlmesh_assets_factory(
                 # Check if this specific model is in the execution list
                 models_to_materialize = dry_run_result["models_to_materialize"]
                 model_names = [model.name for model in models_to_materialize]
+                context.log.info(f"🔍 [ASSET] Using existing dry-run results: {len(models_to_materialize)} models to execute")
+                context.log.info(f"🔍 [ASSET] Models to execute: {model_names}")
+                context.log.info(f"🔍 [ASSET] Current model '{current_model_name}' in execution list: {current_model_name in model_names}")
+                
                 if current_model_name not in model_names:
                     # This specific model is not in the execution list
-                    context.log.info(f"Using existing dry-run results: Model {current_model_name} not in execution list - skipping")
+                    context.log.info(f"🔍 [ASSET] Using existing dry-run results: Model {current_model_name} not in execution list - skipping")
+                    context.log.info(f"🔍 [ASSET] Returning skipped-by-dry-run status for model: {current_model_name}")
                     
                     from .sqlmesh_asset_execution_utils import handle_successful_execution
                     
@@ -287,7 +319,7 @@ def sqlmesh_assets_factory(
                     )
                 
                 # This model should be executed - proceed with normal logic
-                context.log.info(f"Using existing dry-run results: Model {current_model_name} will be executed")
+                context.log.info(f"🔍 [ASSET] Using existing dry-run results: Model {current_model_name} will be executed - proceeding with normal SQLMesh logic")
             context.log.info(f"Processing SQLMesh model: {current_model_name}")
 
             # Check if SQLMesh already executed for this run

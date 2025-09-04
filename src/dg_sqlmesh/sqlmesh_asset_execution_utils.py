@@ -182,58 +182,76 @@ def should_skip_materialization_based_on_dry_run(
     Returns:
         Dict with dry-run results if models should be executed, None if skipped
     """
+    context.log.info(f"🔍 [DRY-RUN-FUNC] Starting should_skip_materialization_based_on_dry_run")
+    context.log.info(f"🔍 [DRY-RUN-FUNC] Selected asset keys: {selected_asset_keys}")
+    context.log.info(f"🔍 [DRY-RUN-FUNC] Environment: {environment or sqlmesh.environment}")
+    
     try:
         # Resolve models to materialize
+        context.log.info(f"🔍 [DRY-RUN-FUNC] Resolving models to materialize...")
         models_to_materialize = get_models_to_materialize(
             selected_asset_keys,
             sqlmesh.get_models,
             sqlmesh.translator,
         )
+        context.log.info(f"🔍 [DRY-RUN-FUNC] Found {len(models_to_materialize)} models to materialize")
+        
         if not models_to_materialize:
             context.log.warning(
-                f"No models found for selected assets: {selected_asset_keys}"
+                f"🔍 [DRY-RUN-FUNC] No models found for selected assets: {selected_asset_keys}"
             )
             return None
 
         # Perform dry-run to check if there are models to execute
+        model_names = [model.name for model in models_to_materialize]
+        context.log.info(f"🔍 [DRY-RUN-FUNC] Performing dry-run for models: {model_names}")
+        
         completion_status, dry_run_summary = sqlmesh.context.dry_run(
             environment=environment or sqlmesh.environment,
-            select_models=[model.name for model in models_to_materialize],
+            select_models=model_names,
             ignore_cron=False,  # Don't ignore cron for realistic scenario
         )
+        
+        context.log.info(f"🔍 [DRY-RUN-FUNC] Dry-run completed with status: {completion_status}")
+        context.log.info(f"🔍 [DRY-RUN-FUNC] Dry-run summary: {dry_run_summary}")
 
         # Check if there are models to execute
         if completion_status.is_nothing_to_do or dry_run_summary["would_execute"] == 0:
             context.log.info(
-                f"Dry-run indicates no models to execute: {dry_run_summary['would_execute']} models would be executed"
+                f"🔍 [DRY-RUN-FUNC] Dry-run indicates no models to execute: {dry_run_summary['would_execute']} models would be executed"
             )
             return None
 
         context.log.info(
-            f"Dry-run completed: {dry_run_summary['would_execute']} models will be executed"
+            f"🔍 [DRY-RUN-FUNC] Dry-run completed: {dry_run_summary['would_execute']} models will be executed"
         )
 
         # Return dry-run results for potential use in execution
-        return {
+        result = {
             "completion_status": completion_status,
             "dry_run_summary": dry_run_summary,
             "models_to_materialize": models_to_materialize,
         }
+        context.log.info(f"🔍 [DRY-RUN-FUNC] Returning dry-run result with {len(models_to_materialize)} models")
+        return result
 
     except Exception as e:
-        context.log.warning(f"Dry-run failed, proceeding with materialization: {e}")
+        context.log.warning(f"🔍 [DRY-RUN-FUNC] Dry-run failed, proceeding with materialization: {e}")
         # Fallback: return models to materialize without dry-run results
+        context.log.info(f"🔍 [DRY-RUN-FUNC] Fallback: getting models without dry-run")
         models_to_materialize = get_models_to_materialize(
             selected_asset_keys,
             sqlmesh.get_models,
             sqlmesh.translator,
         )
         if models_to_materialize:
+            context.log.info(f"🔍 [DRY-RUN-FUNC] Fallback: returning {len(models_to_materialize)} models")
             return {
                 "completion_status": None,
                 "dry_run_summary": None,
                 "models_to_materialize": models_to_materialize,
             }
+        context.log.info(f"🔍 [DRY-RUN-FUNC] Fallback: no models found, returning None")
         return None
 
 
