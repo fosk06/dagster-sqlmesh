@@ -75,20 +75,12 @@ class TestBlockingParameter:
 
         # Get a model with custom audits if available
         context = sqlmesh_resource.context
-        models = context.snapshots.values()
+        
+        # Use get_model instead of snapshots to avoid version check issues
+        # Test with a model that we know has audits
+        model_with_audits = context.get_model("sqlmesh_jaffle_platform.stg_supplies")
 
-        # Find a model with audits
-        model_with_audits = None
-        for snapshot in models:
-            if (
-                hasattr(snapshot, "node")
-                and hasattr(snapshot.node, "audits")
-                and snapshot.node.audits
-            ):
-                model_with_audits = snapshot.node
-                break
-
-        if model_with_audits:
+        if model_with_audits and model_with_audits.audits:
             print(f"Testing model: {model_with_audits.name}")
 
             # Create asset checks from the model

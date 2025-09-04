@@ -36,6 +36,7 @@ from .sqlmesh_asset_execution_utils import (
     check_model_status,
     create_materialize_result,
 )
+from .sqlmesh_schedule_utils import should_skip_sqlmesh_run
 
 
 class SQLMeshResultsResource(ConfigurableResource):
@@ -299,6 +300,11 @@ def sqlmesh_adaptive_schedule_factory(
             return SkipReason(
                 "sqlmesh job already active; skipping new run to enforce singleton execution"
             )
+
+        # Use dry-run to check if there are models to execute
+        skip_reason = should_skip_sqlmesh_run(sqlmesh_resource, context)
+        if skip_reason:
+            return skip_reason
 
         scheduled_ts = context.scheduled_execution_time or datetime.datetime.now()
         return RunRequest(

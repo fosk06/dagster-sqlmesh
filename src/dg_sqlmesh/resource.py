@@ -13,6 +13,7 @@ from dagster import (
     Failure,
 )
 from sqlmesh import Context
+from .enhanced_context import EnhancedContext
 from .translator import SQLMeshTranslator
 from .sqlmesh_asset_utils import (
     get_models_to_materialize,
@@ -122,17 +123,20 @@ class SQLMeshResource(ConfigurableResource):
         return get_or_create_notifier()
 
     @property
-    def context(self) -> Context:
+    def context(self) -> EnhancedContext:
         """
-        Returns the SQLMesh context. Cached for performance.
+        Returns the SQLMesh enhanced context. Cached for performance.
         """
         if not hasattr(self, "_context_cache"):
-            self._context_cache = Context(
+            # Create base SQLMesh context
+            base_context = Context(
                 paths=self.project_dir,
                 gateway=self.gateway,
             )
             # Register our notifier target at Context init via service (idempotent)
-            register_notifier_in_context(self._context_cache)
+            register_notifier_in_context(base_context)
+            # Wrap with EnhancedContext
+            self._context_cache = EnhancedContext(base_context)
         return self._context_cache
 
     @property
