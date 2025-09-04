@@ -170,15 +170,15 @@ def should_skip_materialization_based_on_dry_run(
 ) -> Optional[Dict[str, Any]]:
     """
     Determines if materialization should be skipped based on dry-run results.
-    
+
     This unifies the dry-run logic for both schedules and manual materializations.
-    
+
     Args:
         context: Dagster execution context
         sqlmesh: SQLMesh resource
         selected_asset_keys: Selected assets in this run
         environment: SQLMesh environment to use (optional)
-        
+
     Returns:
         Dict with dry-run results if models should be executed, None if skipped
     """
@@ -190,7 +190,9 @@ def should_skip_materialization_based_on_dry_run(
             sqlmesh.translator,
         )
         if not models_to_materialize:
-            context.log.warning(f"No models found for selected assets: {selected_asset_keys}")
+            context.log.warning(
+                f"No models found for selected assets: {selected_asset_keys}"
+            )
             return None
 
         # Perform dry-run to check if there are models to execute
@@ -259,10 +261,12 @@ def execute_sqlmesh_materialization(
     dry_run_result = should_skip_materialization_based_on_dry_run(
         context, sqlmesh, selected_asset_keys
     )
-    
+
     if dry_run_result is None:
         # No models to execute - create empty results
-        context.log.info("No models to execute based on dry-run - skipping materialization")
+        context.log.info(
+            "No models to execute based on dry-run - skipping materialization"
+        )
         return {
             "failed_check_results": [],
             "skipped_models_events": [],
@@ -271,11 +275,14 @@ def execute_sqlmesh_materialization(
             "notifier_audit_failures": [],
             "affected_downstream_asset_keys": [],
             "sqlmesh_executed_models": [],
-            "sqlmesh_skipped_models": [model.name for model in get_models_to_materialize(
-                selected_asset_keys,
-                sqlmesh.get_models,
-                sqlmesh.translator,
-            )],
+            "sqlmesh_skipped_models": [
+                model.name
+                for model in get_models_to_materialize(
+                    selected_asset_keys,
+                    sqlmesh.get_models,
+                    sqlmesh.translator,
+                )
+            ],
         }
 
     # Extract models to materialize from dry-run result
@@ -610,9 +617,11 @@ def handle_successful_execution(
         # Handle execution status check for ALL models
         # Check if this model was executed by SQLMesh (using tracker results)
         model_was_executed_by_sqlmesh = current_model_name in sqlmesh_executed_models
-        
+
         # Check if this model was skipped due to dry-run (no models executed at all)
-        materialization_was_skipped = len(sqlmesh_executed_models) == 0 and len(sqlmesh_skipped_models) > 0
+        materialization_was_skipped = (
+            len(sqlmesh_executed_models) == 0 and len(sqlmesh_skipped_models) > 0
+        )
 
         # Find the execution status check spec
         execution_status_check = next(
