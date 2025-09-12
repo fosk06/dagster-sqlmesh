@@ -34,7 +34,7 @@ from .execution_results_payload import (
     _init_execution_event_buffers as _init_execution_event_buffers_ext,
     _build_shared_results as _build_shared_results_ext,
 )
-from .simple_run_tracker import sqlmesh_run_tracker
+from .simple_run_tracker import get_global_tracker, reset_global_tracker
 
 # ----------------------------- Internal helpers (Phase 1) -----------------------------
 
@@ -205,41 +205,43 @@ def execute_sqlmesh_materialization(
     except Exception:
         pass
 
-    # Use context manager for clean console tracking
-    with sqlmesh_run_tracker() as tracker:
-        plan = sqlmesh.materialize_assets_threaded(
-            models_to_materialize, context=context
-        )
-        context.log.debug("SQLMesh materialization completed")
+    # Reset tracker before execution
+    reset_global_tracker()
+    
+    # Execute SQLMesh materialization (tracker is already set up globally)
+    plan = sqlmesh.materialize_assets_threaded(
+        models_to_materialize, context=context
+    )
+    context.log.debug("SQLMesh materialization completed")
 
-        # Get executed models from tracker
-        sqlmesh_executed_models = tracker.get_executed_models()
+    # Get executed models from global tracker
+    sqlmesh_executed_models = get_global_tracker().get_executed_models()
 
-        # DEDUCTION LOGIC: Models skipped = Models requested - Models executed
-        # This handles cron-based skips that our tracker doesn't capture directly
-        requested_models = [model.name for model in models_to_materialize]
+    # DEDUCTION LOGIC: Models skipped = Models requested - Models executed
+    # This handles cron-based skips that our tracker doesn't capture directly
+    requested_models = [model.name for model in models_to_materialize]
 
-        # Normalize executed model names to match requested format
-        # Remove quotes and database prefix to match model.name format
-        normalized_executed_models = []
-        for executed_model in sqlmesh_executed_models:
-            # Remove quotes and split by dots
-            clean_name = executed_model.replace('"', "")
-            parts = clean_name.split(".")
-            if len(parts) >= 3:
-                # Keep only schema.model format (skip database)
-                normalized_name = f"{parts[1]}.{parts[2]}"
-                normalized_executed_models.append(normalized_name)
-            else:
-                normalized_executed_models.append(clean_name)
+    # Normalize executed model names to match requested format
+    # Remove quotes and database prefix to match model.name format
+    normalized_executed_models = []
+    for executed_model in sqlmesh_executed_models:
+        # Remove quotes and split by dots
+        clean_name = executed_model.replace('"', "")
+        parts = clean_name.split(".")
+        if len(parts) >= 3:
+            # Keep only schema.model format (skip database)
+            normalized_name = f"{parts[1]}.{parts[2]}"
+            normalized_executed_models.append(normalized_name)
+        else:
+            normalized_executed_models.append(clean_name)
 
-        sqlmesh_skipped_models = list(
-            set(requested_models) - set(normalized_executed_models)
-        )
+    sqlmesh_skipped_models = list(
+        set(requested_models) - set(normalized_executed_models)
+    )
 
-        context.log.info(
-            f"Execution deduction: {len(requested_models)} requested, {len(sqlmesh_executed_models)} executed, {len(sqlmesh_skipped_models)} deduced as skipped"
-        )
+    context.log.info(
+        f"Execution deduction: {len(requested_models)} requested, {len(sqlmesh_executed_models)} executed, {len(sqlmesh_skipped_models)} deduced as skipped"
+    )
 
     # Capture all results
     # Console removed → no legacy failed models events
