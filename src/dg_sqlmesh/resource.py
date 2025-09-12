@@ -27,6 +27,7 @@ from .notifier_service import (
     get_or_create_notifier,
     register_notifier_in_context,
 )
+from .simple_run_tracker import get_global_tracker
 from .sqlmesh_asset_check_utils import (
     deduplicate_asset_check_results,
     serialize_audit_args,
@@ -135,6 +136,8 @@ class SQLMeshResource(ConfigurableResource):
             )
             # Register our notifier target at Context init via service (idempotent)
             register_notifier_in_context(base_context)
+            # Inject our global tracker as console - simple and reliable
+            base_context.console = get_global_tracker()
             # Wrap with EnhancedContext
             self._context_cache = EnhancedContext(base_context)
         return self._context_cache
@@ -174,6 +177,18 @@ class SQLMeshResource(ConfigurableResource):
             str: Recommended Dagster cron expression
         """
         return analyze_sqlmesh_crons_using_api(self.context)
+
+    def get_executed_models(self):
+        """
+        Returns list of executed model names from the global tracker.
+        """
+        return get_global_tracker().get_executed_models()
+
+    def reset_execution_tracking(self):
+        """
+        Reset the execution tracking.
+        """
+        get_global_tracker().clear()
 
     def _serialize_audit_args(self, audit_args):
         """Deprecated: use sqlmesh_asset_check_utils.serialize_audit_args"""

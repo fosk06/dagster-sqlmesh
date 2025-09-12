@@ -6,8 +6,8 @@ Skipped models are deduced externally by: requested_models - executed_models
 import typing as t
 from sqlmesh.core.console import NoopConsole
 from sqlmesh.core.snapshot.definition import Snapshot, SnapshotId
-from contextlib import contextmanager
 from sqlmesh.core.snapshot.definition import Interval
+from sqlmesh.core.snapshot.execution_tracker import QueryExecutionStats
 
 
 class SimpleRunTracker(NoopConsole):
@@ -36,44 +36,23 @@ class SimpleRunTracker(NoopConsole):
         num_audits_passed: int,
         num_audits_failed: int,
         audit_only: bool = False,
-        execution_stats: t.Optional[t.Any] = None,
+        execution_stats: t.Optional[QueryExecutionStats] = None,
         auto_restatement_triggers: t.Optional[t.List[SnapshotId]] = None,
     ) -> None:
         """Track executed model."""
+        print(f"✅ Executed model: {snapshot.name}")
         self.executed_models.add(snapshot.name)
 
 
-@contextmanager
-def sqlmesh_run_tracker(sqlmesh_context):
-    """
-    Context manager to track executed models during SQLMesh run.
-    Skipped models are deduced externally by: requested_models - executed_models
+# Global tracker instance - simple and reliable
+_GLOBAL_TRACKER = SimpleRunTracker()
 
-    Args:
-        sqlmesh_context: The SQLMesh context in which to inject our tracker
 
-    Usage:
-        with sqlmesh_run_tracker(sqlmesh.context) as tracker:
-            # SQLMesh run here
-            plan = sqlmesh.materialize_assets_threaded(...)
+def get_global_tracker() -> SimpleRunTracker:
+    """Get the global tracker instance."""
+    return _GLOBAL_TRACKER
 
-            # Get executed models
-            executed_models = tracker.get_executed_models()
-            skipped_models = list(set(requested_models) - set(executed_models))
-    """
-    # Create our tracker
-    tracker = SimpleRunTracker()
 
-    # Save current console from SQLMesh context
-    original_console = sqlmesh_context.console
-
-    # Inject our tracker into SQLMesh context
-    sqlmesh_context.console = tracker
-
-    try:
-        yield tracker  # Give access to tracker
-    finally:
-        # ALWAYS restore original console from SQLMesh context
-        sqlmesh_context.console = original_console
-        # Optional cleanup
-        tracker.clear()
+def reset_global_tracker() -> None:
+    """Reset the global tracker."""
+    _GLOBAL_TRACKER.clear()

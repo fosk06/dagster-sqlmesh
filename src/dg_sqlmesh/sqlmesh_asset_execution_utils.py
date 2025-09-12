@@ -206,7 +206,7 @@ def execute_sqlmesh_materialization(
         pass
 
     # Use context manager for clean console tracking
-    with sqlmesh_run_tracker(sqlmesh.context) as tracker:
+    with sqlmesh_run_tracker() as tracker:
         plan = sqlmesh.materialize_assets_threaded(
             models_to_materialize, context=context
         )
