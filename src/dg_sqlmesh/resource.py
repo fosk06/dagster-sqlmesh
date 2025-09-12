@@ -27,7 +27,7 @@ from .notifier_service import (
     get_or_create_notifier,
     register_notifier_in_context,
 )
-from .simple_run_tracker import get_global_tracker
+from .simple_run_tracker import get_global_tracker, setup_global_tracker
 from .sqlmesh_asset_check_utils import (
     deduplicate_asset_check_results,
     serialize_audit_args,
@@ -136,8 +136,8 @@ class SQLMeshResource(ConfigurableResource):
             )
             # Register our notifier target at Context init via service (idempotent)
             register_notifier_in_context(base_context)
-            # Inject our global tracker as console - simple and reliable
-            base_context.console = get_global_tracker()
+            # Setup our global tracker using set_console (recommended method)
+            setup_global_tracker()
             # Wrap with EnhancedContext
             self._context_cache = EnhancedContext(base_context)
         return self._context_cache

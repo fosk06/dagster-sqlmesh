@@ -4,7 +4,7 @@ Skipped models are deduced externally by: requested_models - executed_models
 """
 
 import typing as t
-from sqlmesh.core.console import NoopConsole
+from sqlmesh.core.console import NoopConsole, set_console
 from sqlmesh.core.snapshot.definition import Snapshot, SnapshotId
 from sqlmesh.core.snapshot.definition import Interval
 from sqlmesh.core.snapshot.execution_tracker import QueryExecutionStats
@@ -56,3 +56,8 @@ def get_global_tracker() -> SimpleRunTracker:
 def reset_global_tracker() -> None:
     """Reset the global tracker."""
     _GLOBAL_TRACKER.clear()
+
+
+def setup_global_tracker() -> None:
+    """Setup the global tracker using set_console (recommended method)."""
+    set_console(_GLOBAL_TRACKER)
