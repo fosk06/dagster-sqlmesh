@@ -54,18 +54,22 @@ class CapturingNotifier(BaseNotificationTarget):
 
     # ---------------------- Run lifecycle ----------------------
     def notify_run_start(self, environment: str, *_: t.Any, **__: t.Any) -> None:
+        print(f"🚀 Run started in environment: {environment}")
         self._run_events.append({"event": "run_start", "environment": environment})
 
     def notify_run_end(self, environment: str, *_: t.Any, **__: t.Any) -> None:
+        print(f"✅ Run completed in environment: {environment}")
         self._run_events.append({"event": "run_end", "environment": environment})
 
     def notify_run_failure(self, exc: str, *_: t.Any, **__: t.Any) -> None:
+        print(f"💥 Run failed with exception: {exc}")
         self._run_events.append({"event": "run_failure", "exception": exc})
 
     # ---------------------- Apply lifecycle ----------------------
     def notify_apply_start(
         self, environment: str, plan_id: str, *_: t.Any, **__: t.Any
     ) -> None:
+        print(f"📋 Apply started in environment: {environment}, plan: {plan_id}")
         self._apply_events.append(
             {"event": "apply_start", "environment": environment, "plan_id": plan_id}
         )
@@ -73,6 +77,7 @@ class CapturingNotifier(BaseNotificationTarget):
     def notify_apply_end(
         self, environment: str, plan_id: str, *_: t.Any, **__: t.Any
     ) -> None:
+        print(f"📋 Apply completed in environment: {environment}, plan: {plan_id}")
         self._apply_events.append(
             {"event": "apply_end", "environment": environment, "plan_id": plan_id}
         )
@@ -80,6 +85,7 @@ class CapturingNotifier(BaseNotificationTarget):
     def notify_apply_failure(
         self, environment: str, plan_id: str, exc: str, *_: t.Any, **__: t.Any
     ) -> None:
+        print(f"💥 Apply failed in environment: {environment}, plan: {plan_id}, error: {exc}")
         self._apply_events.append(
             {
                 "event": "apply_failure",
@@ -102,11 +108,26 @@ class CapturingNotifier(BaseNotificationTarget):
             "sql": details.get("sql"),
             "blocking": details.get("blocking", True),
         }
+        
+        # Log audit failure details
+        model_name = audit_failure_record["model"]
+        audit_name = audit_failure_record["audit"]
+        blocking_status = audit_failure_record["blocking"]
+        failure_count = audit_failure_record["count"]
+        
+        print(f"❌ Audit failure captured: {model_name}.{audit_name}")
+        print(f"❌ Blocking: {blocking_status}, Count: {failure_count}")
+        print(f"❌ Total audit failures so far: {len(self._audit_failures) + 1}")
+        
         self._audit_failures.append(audit_failure_record)
 
     # ---------------------- Accessors ----------------------
     def get_audit_failures(self) -> list[dict[str, t.Any]]:
-        return list(self._audit_failures)
+        failures = list(self._audit_failures)
+        print(f"📋 Retrieved {len(failures)} audit failures from notifier")
+        for i, failure in enumerate(failures):
+            print(f"📋   {i+1}. {failure.get('model')}.{failure.get('audit')} (blocking: {failure.get('blocking')})")
+        return failures
 
     def get_run_events(self) -> list[dict[str, t.Any]]:
         return list(self._run_events)

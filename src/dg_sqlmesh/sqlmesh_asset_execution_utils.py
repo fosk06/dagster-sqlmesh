@@ -222,7 +222,6 @@ def execute_sqlmesh_materialization(
     tracker = get_global_tracker()
     sqlmesh_executed_models = tracker.get_executed_models()
     sqlmesh_failed_models = tracker.get_failed_models()
-    sqlmesh_never_attempted = tracker.get_never_attempted_models()
 
     # DEDUCTION LOGIC: Models skipped = Models requested - Models executed
     # This handles cron-based skips that our tracker doesn't capture directly
@@ -256,16 +255,12 @@ def execute_sqlmesh_materialization(
     # Calculate comprehensive execution status
     all_attempted_models = set(normalized_executed_models) | set(sqlmesh_failed_models)
     sqlmesh_skipped_models = list(set(requested_models) - all_attempted_models)
-    
-    # Models that were never attempted due to batch early exit
-    sqlmesh_never_attempted_models = sqlmesh_never_attempted
 
     context.log.info(
         f"Execution deduction: {len(requested_models)} requested, "
         f"{len(sqlmesh_executed_models)} executed, "
         f"{len(sqlmesh_failed_models)} failed, "
-        f"{len(sqlmesh_skipped_models)} skipped, "
-        f"{len(sqlmesh_never_attempted_models)} never attempted"
+        f"{len(sqlmesh_skipped_models)} skipped"
     )
 
     # Capture all results
@@ -545,8 +540,14 @@ def handle_successful_execution(
                 )
 
         # Handle execution status check for ALL models
-        # Check if this model was executed by SQLMesh (using tracker results)
-        model_was_executed_by_sqlmesh = current_model_name in sqlmesh_executed_models
+        # Use precise logic: check tracker + notifier service to determine status
+        model_was_executed_by_tracker = current_model_name in (sqlmesh_executed_models or [])
+        
+        # Check if model has audit failures (executed but failed audits)
+        model_has_audit_failures_in_notifier = any(
+            failure.get("model") == current_model_name 
+            for failure in (notifier_audit_failures or [])
+        )
 
         # Find the execution status check spec
         execution_status_check = next(
@@ -559,7 +560,7 @@ def handle_successful_execution(
         )
 
         if execution_status_check:
-            if model_was_executed_by_sqlmesh:
+            if model_was_executed_by_tracker:
                 # Model was executed → SUCCESS
                 check_results.append(
                     AssetCheckResult(
@@ -571,6 +572,21 @@ def handle_successful_execution(
                             "check_type": "execution_status",
                             "status": "executed",
                             "message": f"Model {current_model_name} was executed by SQLMesh",
+                        },
+                    )
+                )
+            elif model_has_audit_failures_in_notifier:
+                # Model was executed but failed audits → SUCCESS (data was computed)
+                check_results.append(
+                    AssetCheckResult(
+                        passed=True,
+                        severity=AssetCheckSeverity.WARN,
+                        check_name="sqlmesh_execution_status",
+                        metadata={
+                            "sqlmesh_model": current_model_name,
+                            "check_type": "execution_status",
+                            "status": "executed_with_audit_failures",
+                            "message": f"Model {current_model_name} was executed by SQLMesh but has audit failures",
                         },
                     )
                 )

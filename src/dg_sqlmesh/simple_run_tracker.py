@@ -33,10 +33,6 @@ class ComprehensiveRunTracker(NoopConsole):
         """Returns list of all requested model names."""
         return list(self.requested_models)
 
-    def get_never_attempted_models(self) -> t.List[str]:
-        """Returns models that were requested but never attempted (batch early exit)."""
-        attempted = self.executed_models | self.failed_models
-        return list(self.requested_models - attempted)
 
     def clear(self):
         """Reset tracking."""
@@ -62,6 +58,8 @@ class ComprehensiveRunTracker(NoopConsole):
     ) -> None:
         """Track executed model."""
         print(f"✅ Executed model: {snapshot.name}")
+        print(f"✅ num_audits_passed : {num_audits_passed}")
+        print(f"✅ num_audits_failed : {num_audits_failed}")
         self.executed_models.add(snapshot.name)
 
     def add_failed_model(self, model_name: str) -> None:
