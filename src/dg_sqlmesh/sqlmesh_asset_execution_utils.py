@@ -235,6 +235,16 @@ def execute_sqlmesh_materialization(
         else:
             normalized_executed_models.append(clean_name)
 
+    # Add models with audit failures to executed models
+    # If there's an audit failure, the model was definitely executed by SQLMesh
+    # (audits run AFTER data computation)
+    notifier_audit_failures = get_audit_failures()
+    for audit_failure in notifier_audit_failures:
+        model_name = audit_failure.get("model")
+        if model_name and model_name not in normalized_executed_models:
+            normalized_executed_models.append(model_name)
+            context.log.debug(f"Added model with audit failure to executed: {model_name}")
+
     sqlmesh_skipped_models = list(
         set(requested_models) - set(normalized_executed_models)
     )
