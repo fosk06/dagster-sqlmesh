@@ -175,6 +175,11 @@ gh pr view --web
 - [ ] **Breaking Changes**: Documented if any
 - [ ] **Performance**: No obvious performance issues
 
+## Commit flow
+
+**IMPORTANT**: NEVER commit withtout asking the approval of the user.
+User must test and validate your changes before any commit.
+
 ### Review Request
 
 ```bash

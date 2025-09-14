@@ -208,14 +208,21 @@ def execute_sqlmesh_materialization(
     # Reset tracker before execution
     reset_global_tracker()
     
+    # Set requested models in tracker for comprehensive tracking
+    requested_model_names = [model.name for model in models_to_materialize]
+    get_global_tracker().set_requested_models(requested_model_names)
+    
     # Execute SQLMesh materialization (tracker is already set up globally)
     plan = sqlmesh.materialize_assets_threaded(
         models_to_materialize, context=context
     )
     context.log.debug("SQLMesh materialization completed")
 
-    # Get executed models from global tracker
-    sqlmesh_executed_models = get_global_tracker().get_executed_models()
+    # Get comprehensive execution status from global tracker
+    tracker = get_global_tracker()
+    sqlmesh_executed_models = tracker.get_executed_models()
+    sqlmesh_failed_models = tracker.get_failed_models()
+    sqlmesh_never_attempted = tracker.get_never_attempted_models()
 
     # DEDUCTION LOGIC: Models skipped = Models requested - Models executed
     # This handles cron-based skips that our tracker doesn't capture directly
@@ -243,14 +250,22 @@ def execute_sqlmesh_materialization(
         model_name = audit_failure.get("model")
         if model_name and model_name not in normalized_executed_models:
             normalized_executed_models.append(model_name)
+            tracker.add_failed_model(model_name)  # Track as failed
             context.log.debug(f"Added model with audit failure to executed: {model_name}")
 
-    sqlmesh_skipped_models = list(
-        set(requested_models) - set(normalized_executed_models)
-    )
+    # Calculate comprehensive execution status
+    all_attempted_models = set(normalized_executed_models) | set(sqlmesh_failed_models)
+    sqlmesh_skipped_models = list(set(requested_models) - all_attempted_models)
+    
+    # Models that were never attempted due to batch early exit
+    sqlmesh_never_attempted_models = sqlmesh_never_attempted
 
     context.log.info(
-        f"Execution deduction: {len(requested_models)} requested, {len(sqlmesh_executed_models)} executed, {len(sqlmesh_skipped_models)} deduced as skipped"
+        f"Execution deduction: {len(requested_models)} requested, "
+        f"{len(sqlmesh_executed_models)} executed, "
+        f"{len(sqlmesh_failed_models)} failed, "
+        f"{len(sqlmesh_skipped_models)} skipped, "
+        f"{len(sqlmesh_never_attempted_models)} never attempted"
     )
 
     # Capture all results

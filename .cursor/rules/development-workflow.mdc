@@ -328,3 +328,8 @@ make release-major  # Clean + bump-major + build + publish
 - **Security audit**: `make security` (pip-audit + safety + license compliance)
 - **Code quality**: `make validate` (full validation pipeline)
 - **CI simulation**: `make ci-test` (simulate CI/CD workflow)
+
+## Commit flow
+
+**IMPORTANT**: NEVER commit withtout asking the approval of the user.
+User must test and validate your changes before any commit.

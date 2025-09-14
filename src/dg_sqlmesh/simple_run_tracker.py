@@ -1,6 +1,6 @@
 """
-Ultra-simple console that tracks ONLY executed models.
-Skipped models are deduced externally by: requested_models - executed_models
+Comprehensive console that tracks model execution states.
+Handles SQLMesh batch execution and early exit scenarios.
 """
 
 import typing as t
@@ -10,22 +10,43 @@ from sqlmesh.core.snapshot.definition import Interval
 from sqlmesh.core.snapshot.execution_tracker import QueryExecutionStats
 
 
-class SimpleRunTracker(NoopConsole):
+class ComprehensiveRunTracker(NoopConsole):
     """
-    Minimal console that tracks ONLY executed models.
-    Skipped models are deduced externally by: requested_models - executed_models
+    Comprehensive console that tracks all model execution states.
+    Handles SQLMesh batch execution and early exit scenarios.
     """
 
     def __init__(self):
-        self.executed_models: t.Set[str] = set()
+        self.executed_models: t.Set[str] = set()  # Models that completed successfully
+        self.failed_models: t.Set[str] = set()    # Models that failed (audit failures)
+        self.requested_models: t.Set[str] = set() # All models that were requested for execution
 
     def get_executed_models(self) -> t.List[str]:
-        """Returns list of executed model names."""
+        """Returns list of successfully executed model names."""
         return list(self.executed_models)
+
+    def get_failed_models(self) -> t.List[str]:
+        """Returns list of failed model names."""
+        return list(self.failed_models)
+
+    def get_requested_models(self) -> t.List[str]:
+        """Returns list of all requested model names."""
+        return list(self.requested_models)
+
+    def get_never_attempted_models(self) -> t.List[str]:
+        """Returns models that were requested but never attempted (batch early exit)."""
+        attempted = self.executed_models | self.failed_models
+        return list(self.requested_models - attempted)
 
     def clear(self):
         """Reset tracking."""
         self.executed_models.clear()
+        self.failed_models.clear()
+        self.requested_models.clear()
+
+    def set_requested_models(self, model_names: t.List[str]) -> None:
+        """Set the list of models that were requested for execution."""
+        self.requested_models = set(model_names)
 
     def update_snapshot_evaluation_progress(
         self,
@@ -43,12 +64,17 @@ class SimpleRunTracker(NoopConsole):
         print(f"✅ Executed model: {snapshot.name}")
         self.executed_models.add(snapshot.name)
 
+    def add_failed_model(self, model_name: str) -> None:
+        """Add a model that failed (e.g., due to audit failure)."""
+        print(f"❌ Failed model: {model_name}")
+        self.failed_models.add(model_name)
 
-# Global tracker instance - simple and reliable
-_GLOBAL_TRACKER = SimpleRunTracker()
+
+# Global tracker instance - comprehensive and reliable
+_GLOBAL_TRACKER = ComprehensiveRunTracker()
 
 
-def get_global_tracker() -> SimpleRunTracker:
+def get_global_tracker() -> ComprehensiveRunTracker:
     """Get the global tracker instance."""
     return _GLOBAL_TRACKER
 
