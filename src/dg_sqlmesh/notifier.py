@@ -53,7 +53,7 @@ class CapturingNotifier(BaseNotificationTarget):
     def _log(self, message: str) -> None:
         """Log message using Dagster logger if available, otherwise print."""
         if self._logger:
-            self._logger.info(message)
+            self._logger.debug(message)
         else:
             print(message)
 

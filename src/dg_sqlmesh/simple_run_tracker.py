@@ -59,9 +59,9 @@ class ComprehensiveRunTracker(NoopConsole):
     ) -> None:
         """Track executed model."""
         if self.logger:
-            self.logger.info(f"✅ Executed model: {snapshot.name}")
-            self.logger.info(f"✅ num_audits_passed : {num_audits_passed}")
-            self.logger.info(f"✅ num_audits_failed : {num_audits_failed}")
+            self.logger.debug(f"✅ Executed model: {snapshot.name}")
+            self.logger.debug(f"✅ num_audits_passed : {num_audits_passed}")
+            self.logger.debug(f"✅ num_audits_failed : {num_audits_failed}")
         else:
             print(f"✅ Executed model: {snapshot.name}")
             print(f"✅ num_audits_passed : {num_audits_passed}")
@@ -71,7 +71,7 @@ class ComprehensiveRunTracker(NoopConsole):
     def add_failed_model(self, model_name: str) -> None:
         """Add a model that failed (e.g., due to audit failure)."""
         if self.logger:
-            self.logger.info(f"❌ Failed model: {model_name}")
+            self.logger.debug(f"❌ Failed model: {model_name}")
         else:
             print(f"❌ Failed model: {model_name}")
         self.failed_models.add(model_name)
