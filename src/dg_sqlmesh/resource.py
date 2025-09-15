@@ -27,7 +27,7 @@ from .notifier_service import (
     get_or_create_notifier,
     register_notifier_in_context,
 )
-from .simple_run_tracker import get_global_tracker, setup_global_tracker
+from .comprehensive_run_tracker import get_global_tracker, setup_global_tracker
 from .sqlmesh_asset_check_utils import (
     deduplicate_asset_check_results,
     serialize_audit_args,

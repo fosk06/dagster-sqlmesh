@@ -34,7 +34,7 @@ from .execution_results_payload import (
     _init_execution_event_buffers as _init_execution_event_buffers_ext,
     _build_shared_results as _build_shared_results_ext,
 )
-from .simple_run_tracker import get_global_tracker, reset_global_tracker
+from .comprehensive_run_tracker import get_global_tracker, reset_global_tracker
 
 # ----------------------------- Internal helpers (Phase 1) -----------------------------
 
