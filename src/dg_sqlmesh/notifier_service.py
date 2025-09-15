@@ -10,21 +10,23 @@ from .notifier import CapturingNotifier
 _NOTIFIER_SINGLETON: CapturingNotifier | None = None
 
 
-def get_or_create_notifier() -> CapturingNotifier:
+def get_or_create_notifier(logger=None) -> CapturingNotifier:
     """Return a process-wide singleton instance of CapturingNotifier."""
     global _NOTIFIER_SINGLETON
     if _NOTIFIER_SINGLETON is None:
         _NOTIFIER_SINGLETON = CapturingNotifier()
+    if logger is not None:
+        _NOTIFIER_SINGLETON.set_logger(logger)
     return _NOTIFIER_SINGLETON
 
 
-def register_notifier_in_context(context: Context) -> None:
+def register_notifier_in_context(context: Context, logger=None) -> None:
     """Ensure the notifier is registered within the provided SQLMesh Context.
 
     This function is idempotent and safe against changes in SQLMesh internal APIs.
     """
     try:
-        notifier = get_or_create_notifier()
+        notifier = get_or_create_notifier(logger=logger)
         # Lazily create list if missing and avoid duplicate registration
         targets = getattr(context, "notification_targets", None)
         if targets is None:

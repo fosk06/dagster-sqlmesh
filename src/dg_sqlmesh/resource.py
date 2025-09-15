@@ -135,9 +135,9 @@ class SQLMeshResource(ConfigurableResource):
                 gateway=self.gateway,
             )
             # Register our notifier target at Context init via service (idempotent)
-            register_notifier_in_context(base_context)
+            register_notifier_in_context(base_context, logger=self.logger)
             # Setup our global tracker using set_console (recommended method)
-            setup_global_tracker()
+            setup_global_tracker(logger=self.logger)
             # Wrap with EnhancedContext
             self._context_cache = EnhancedContext(base_context)
         return self._context_cache
