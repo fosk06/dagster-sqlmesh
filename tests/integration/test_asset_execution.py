@@ -49,7 +49,7 @@ class TestAssetMaterialization:
 
         # Verify we have the expected resource types
         assert "sqlmesh" in defs.resources
-        assert "sqlmesh_results" in defs.resources
+        # sqlmesh_results resource no longer needed with new architecture
 
     def test_asset_materialization_with_dependencies(self, sqlmesh_resource):
         """Test asset creation with dependency resolution."""
@@ -279,7 +279,7 @@ class TestAssetExecutionIntegration:
 
         # Verify we have the expected resources
         assert "sqlmesh" in defs.resources
-        assert "sqlmesh_results" in defs.resources
+        # sqlmesh_results resource no longer needed with new architecture
 
         # Verify the asset graph is properly configured
         asset_graph = defs.resolve_asset_graph()
