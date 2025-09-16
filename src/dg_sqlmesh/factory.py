@@ -1,6 +1,9 @@
 from dagster import (
     asset,
     AssetExecutionContext,
+    AssetKey,
+    MaterializeResult,
+    AssetCheckResult,
     schedule,
     define_asset_job,
     RunRequest,
@@ -31,12 +34,269 @@ import warnings
 
 # Import utility functions
 from .sqlmesh_asset_execution_utils import (
-    execute_sqlmesh_materialization,
-    process_sqlmesh_results,
-    check_model_status,
-    create_materialize_result,
+    handle_successful_execution,
 )
+from .sqlmesh_asset_utils import get_models_to_materialize
 from .sqlmesh_schedule_utils import should_skip_sqlmesh_run
+from .notifier_service import clear_notifier_state, get_audit_failures
+from .simple_run_tracker import sqlmesh_run_tracker
+
+
+# -------------------- Precompute Asset for Single SQLMesh Execution --------------------
+
+
+def _execute_sqlmesh_materialization_for_precompute(
+    context: AssetExecutionContext,
+    sqlmesh: SQLMeshResource,
+    selected_asset_keys: List[AssetKey],
+) -> Dict[str, Any]:
+    """
+    Execute SQLMesh materialization for precompute asset.
+    Reuses existing logic from execute_sqlmesh_materialization but without SQLMeshResultsResource.
+    """
+    # Resolve models to materialize
+    models_to_materialize = get_models_to_materialize(
+        selected_asset_keys,
+        sqlmesh.get_models,
+        sqlmesh.translator,
+    )
+    if not models_to_materialize:
+        raise Exception(f"No models found for selected assets: {selected_asset_keys}")
+
+    # Single SQLMesh execution
+    context.log.info(
+        f"Materializing {len(models_to_materialize)} models: {[m.name for m in models_to_materialize]}"
+    )
+    context.log.debug(
+        "Starting SQLMesh materialization (count=%d)", len(models_to_materialize)
+    )
+
+    # Clear notifier state at run start to avoid accumulating audit failures from previous runs
+    try:
+        clear_notifier_state()
+        context.log.debug("Notifier state cleared at run start")
+    except Exception:
+        pass
+
+    # Use context manager for clean console tracking
+    with sqlmesh_run_tracker(sqlmesh.context) as tracker:
+        plan = sqlmesh.materialize_assets_threaded(
+            models_to_materialize, context=context
+        )
+        context.log.debug("SQLMesh materialization completed")
+
+        # Get executed models from tracker
+        sqlmesh_executed_models = tracker.get_executed_models()
+
+        # DEDUCTION LOGIC: Models skipped = Models requested - Models executed
+        # This handles cron-based skips that our tracker doesn't capture directly
+        requested_models = [model.name for model in models_to_materialize]
+
+        # Normalize executed model names to match requested format
+        # Remove quotes and database prefix to match model.name format
+        normalized_executed_models = []
+        for executed_model in sqlmesh_executed_models:
+            # Remove quotes and split by dots
+            clean_name = executed_model.replace('"', "")
+            parts = clean_name.split(".")
+            if len(parts) >= 3:
+                # Keep only schema.model format (skip database)
+                normalized_name = f"{parts[1]}.{parts[2]}"
+                normalized_executed_models.append(normalized_name)
+            else:
+                normalized_executed_models.append(clean_name)
+
+        sqlmesh_skipped_models = list(
+            set(requested_models) - set(normalized_executed_models)
+        )
+
+        context.log.info(
+            f"Execution deduction: {len(requested_models)} requested, {len(sqlmesh_executed_models)} executed, {len(sqlmesh_skipped_models)} deduced as skipped"
+        )
+
+    # Capture all results
+    # Initialize result buffers (console disabled)
+    failed_check_results: List[AssetCheckResult] = []
+    skipped_models_events: List[Dict] = []
+    evaluation_events: List[Dict] = []
+    non_blocking_audit_warnings: List[Dict] = []
+
+    # Capture audit failures from the notifier (robust)
+    # Get notifier failures via service and log summary
+    notifier_audit_failures = get_audit_failures()
+
+    # Build blocking AssetKeys and affected downstream assets
+    # Compute blocking and downstream
+    blocking_failed_asset_keys: List[AssetKey] = []
+    try:
+        for fail in notifier_audit_failures:
+            if fail.get("blocking") and fail.get("model"):
+                model = sqlmesh.context.get_model(fail.get("model"))
+                if model:
+                    blocking_failed_asset_keys.append(
+                        sqlmesh.translator.get_asset_key(model)
+                    )
+    except Exception:
+        pass
+
+    try:
+        affected_downstream_asset_keys = sqlmesh._get_affected_downstream_assets(
+            blocking_failed_asset_keys
+        )
+    except Exception:
+        affected_downstream_asset_keys = set()
+
+    try:
+        affected_downstream_asset_keys = set(affected_downstream_asset_keys) - set(
+            blocking_failed_asset_keys
+        )
+    except Exception:
+        affected_downstream_asset_keys = set()
+
+    context.log.info(
+        f"Blocking failed assets: {blocking_failed_asset_keys} | Downstream affected: {list(affected_downstream_asset_keys)}"
+    )
+
+    # Build result payload
+    results: Dict[str, Any] = {
+        "failed_check_results": failed_check_results,
+        "skipped_models_events": skipped_models_events,
+        "evaluation_events": evaluation_events,
+        "non_blocking_audit_warnings": non_blocking_audit_warnings,
+        "notifier_audit_failures": notifier_audit_failures,
+        "affected_downstream_asset_keys": list(affected_downstream_asset_keys),
+        "sqlmesh_executed_models": normalized_executed_models,  # Store NORMALIZED executed models
+        "sqlmesh_skipped_models": sqlmesh_skipped_models,  # Models actually skipped by SQLMesh
+        "plan": plan,
+    }
+
+    return results
+
+
+def _create_success_result(
+    context: AssetExecutionContext,
+    model_name: str,
+    asset_spec: Any,
+    model_checks: List[Any],
+    sqlmesh_execution_results: Dict[str, Any],
+    sqlmesh: SQLMeshResource,
+) -> MaterializeResult:
+    """Create MaterializeResult for successfully executed model."""
+    audit_results = sqlmesh_execution_results["audit_results"]
+
+    return handle_successful_execution(
+        context=context,
+        current_model_name=model_name,
+        current_asset_spec=asset_spec,
+        current_model_checks=model_checks,
+        non_blocking_audit_warnings=audit_results.get("non_blocking_warnings", []),
+        notifier_audit_failures=audit_results.get("notifier_failures", []),
+        sqlmesh_executed_models=sqlmesh_execution_results["model_status"]["executed"],
+        sqlmesh_skipped_models=sqlmesh_execution_results["model_status"]["skipped"],
+    )
+
+
+def _create_skipped_result(
+    context: AssetExecutionContext,
+    model_name: str,
+    asset_spec: Any,
+    model_checks: List[Any],
+    sqlmesh_execution_results: Dict[str, Any],
+    sqlmesh: SQLMeshResource,
+) -> MaterializeResult:
+    """Create MaterializeResult for skipped model."""
+    from .resource import UpstreamAuditFailureError
+
+    # For skipped models, raise UpstreamAuditFailureError
+    # This will be handled gracefully by Dagster
+    raise UpstreamAuditFailureError(
+        f"Model {model_name} was skipped by SQLMesh due to upstream dependencies or cron scheduling"
+    )
+
+
+def _create_not_found_result(
+    context: AssetExecutionContext,
+    model_name: str,
+    asset_spec: Any,
+    model_checks: List[Any],
+    sqlmesh_execution_results: Dict[str, Any],
+    sqlmesh: SQLMeshResource,
+) -> MaterializeResult:
+    """Create MaterializeResult for model not found in results."""
+    from .resource import UpstreamAuditFailureError
+
+    # For models not found in results, raise UpstreamAuditFailureError
+    raise UpstreamAuditFailureError(
+        f"Model {model_name} was not found in SQLMesh execution results"
+    )
+
+
+@asset(
+    group_name="sqlmesh_internal",  # Separate group to hide in UI
+    tags={"internal": "", "precompute": "", "sqlmesh": ""},
+    retry_policy=RetryPolicy(max_retries=0),
+)
+def sqlmesh_execution_results(
+    context: AssetExecutionContext, sqlmesh: SQLMeshResource
+) -> Dict[str, Any]:
+    """
+    Precompute asset that executes SQLMesh once and returns results
+    for all selected models. This ensures single SQLMesh execution per run.
+    """
+    context.log.info("🚀 Starting single SQLMesh execution...")
+
+    # Get all selected assets
+    selected_asset_keys = context.selected_asset_keys
+    context.log.info(f"📋 Selected assets: {[str(key) for key in selected_asset_keys]}")
+
+    # Convert to SQLMesh models
+    models_to_materialize = get_models_to_materialize(
+        selected_asset_keys,
+        sqlmesh.get_models,
+        sqlmesh.translator,
+    )
+
+    model_names = [model.name for model in models_to_materialize]
+    context.log.info(f"🔧 SQLMesh models to execute: {model_names}")
+
+    try:
+        # Execute SQLMesh materialization using existing utility
+        # This includes all the console/notifier logic we need
+        results = _execute_sqlmesh_materialization_for_precompute(
+            context=context,
+            sqlmesh=sqlmesh,
+            selected_asset_keys=selected_asset_keys,
+        )
+
+        context.log.info("✅ SQLMesh execution completed successfully")
+
+        # Structure the results for individual assets
+        return {
+            "execution_timestamp": datetime.datetime.now().isoformat(),
+            "plan": results.get("plan"),
+            "model_status": {
+                "executed": results.get("sqlmesh_executed_models", []),
+                "skipped": results.get("sqlmesh_skipped_models", []),
+                "failed": [
+                    check.asset_key.path[-1]
+                    for check in results.get("failed_check_results", [])
+                ],
+            },
+            "audit_results": {
+                "failed_checks": results.get("failed_check_results", []),
+                "skipped_models": results.get("skipped_models_events", []),
+                "non_blocking_warnings": results.get("non_blocking_audit_warnings", []),
+                "notifier_failures": results.get("notifier_audit_failures", []),
+            },
+            "affected_downstream": list(
+                results.get("affected_downstream_asset_keys", set())
+            ),
+            "assetkey_to_snapshot": results.get("assetkey_to_snapshot", {}),
+        }
+
+    except Exception as e:
+        context.log.error(f"❌ Error during SQLMesh execution: {str(e)}")
+        raise
 
 
 class SQLMeshResultsResource(ConfigurableResource):
@@ -132,8 +392,8 @@ def sqlmesh_assets_factory(
     except Exception as e:
         raise ValueError(f"Failed to create SQLMesh assets: {e}") from e
 
-    # Create individual assets with shared SQLMesh execution
-    assets = []
+    # Start with the precompute asset
+    assets = [sqlmesh_execution_results]
 
     def create_model_asset(
         current_model_name, current_asset_spec, current_model_checks
@@ -143,7 +403,7 @@ def sqlmesh_assets_factory(
             description=f"SQLMesh model: {current_model_name}",
             group_name=current_asset_spec.group_name,
             metadata=current_asset_spec.metadata,
-            deps=current_asset_spec.deps,
+            deps=[sqlmesh_execution_results],  # Direct dependency on precompute asset
             check_specs=current_model_checks,
             op_tags=op_tags,
             retry_policy=RetryPolicy(max_retries=0),
@@ -157,61 +417,54 @@ def sqlmesh_assets_factory(
         )
         def model_asset(
             context: AssetExecutionContext,
+            sqlmesh_execution_results: Dict[
+                str, Any
+            ],  # Automatically passed by Dagster
             sqlmesh: SQLMeshResource,
-            sqlmesh_results: SQLMeshResultsResource,
         ):
+            # Assert instance-level coordinator enforcement
             _assert_instance_for_compute()
-            context.log.info(f"Processing SQLMesh model: {current_model_name}")
 
-            # Check if SQLMesh was already executed in this run
-            run_id = context.run_id
+            context.log.info(f"🔍 Processing model: {current_model_name}")
 
-            # Retrieve or create shared SQLMesh results
-            if not sqlmesh_results.has_results(run_id):
-                # Execute SQLMesh materialization for all selected assets
-                execute_sqlmesh_materialization(
-                    context,
-                    sqlmesh,
-                    sqlmesh_results,
-                    run_id,
-                    context.selected_asset_keys,
+            # Get model status from precompute results
+            model_status = sqlmesh_execution_results["model_status"]
+
+            # Check if this model was executed, skipped, or failed
+            if current_model_name in model_status["executed"]:
+                context.log.info(
+                    f"✅ Model {current_model_name} was executed successfully"
                 )
-
-            # Retrieve results for this run
-            (
-                failed_check_results,
-                skipped_models_events,
-                non_blocking_audit_warnings,
-                notifier_audit_failures,
-                affected_downstream_asset_keys,
-                sqlmesh_executed_models,
-                sqlmesh_skipped_models,
-            ) = process_sqlmesh_results(context, sqlmesh_results, run_id)
-
-            # Check the status for our specific model
-            model_was_skipped, model_has_audit_failures = check_model_status(
-                context,
-                current_model_name,
-                current_asset_spec,
-                failed_check_results,
-                skipped_models_events,
-            )
-
-            # Create the appropriate MaterializeResult (9-params API)
-            result = create_materialize_result(
-                context,
-                current_model_name,
-                current_asset_spec,
-                current_model_checks,
-                model_was_skipped,
-                model_has_audit_failures,
-                non_blocking_audit_warnings,
-                notifier_audit_failures,
-                affected_downstream_asset_keys,
-                sqlmesh_executed_models,  # Pass SQLMesh executed models
-                sqlmesh_skipped_models,  # Pass SQLMesh skipped models
-            )
-            return result
+                return _create_success_result(
+                    context,
+                    current_model_name,
+                    current_asset_spec,
+                    current_model_checks,
+                    sqlmesh_execution_results,
+                    sqlmesh,
+                )
+            elif current_model_name in model_status["skipped"]:
+                context.log.info(f"⏭️ Model {current_model_name} was skipped by SQLMesh")
+                return _create_skipped_result(
+                    context,
+                    current_model_name,
+                    current_asset_spec,
+                    current_model_checks,
+                    sqlmesh_execution_results,
+                    sqlmesh,
+                )
+            else:
+                context.log.warning(
+                    f"⚠️ Model {current_model_name} not found in results"
+                )
+                return _create_not_found_result(
+                    context,
+                    current_model_name,
+                    current_asset_spec,
+                    current_model_checks,
+                    sqlmesh_execution_results,
+                    sqlmesh,
+                )
 
         # Rename to avoid collisions
         model_asset.__name__ = f"sqlmesh_{current_model_name}_asset"
@@ -399,8 +652,7 @@ def sqlmesh_definitions_factory(
         concurrency_limit=concurrency_limit,
     )
 
-    # Create SQLMesh results resource for sharing between assets
-    sqlmesh_results_resource = SQLMeshResultsResource()
+    # No longer need SQLMeshResultsResource - using Dagster dependencies instead
 
     # Validate external dependencies
     try:
@@ -442,6 +694,5 @@ def sqlmesh_definitions_factory(
         schedules=schedules,
         resources={
             "sqlmesh": sqlmesh_resource,
-            "sqlmesh_results": sqlmesh_results_resource,
         },
     )
