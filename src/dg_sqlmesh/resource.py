@@ -245,7 +245,7 @@ class SQLMeshResource(ConfigurableResource):
         self.context.run(
             environment=self.environment,
             select_models=model_names,
-            execution_time=datetime.datetime.now(),
+            execution_time=datetime.datetime.now(datetime.UTC),
         )
 
     def _log_and_raise(self, message: str) -> None:
